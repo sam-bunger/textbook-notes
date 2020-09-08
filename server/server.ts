@@ -24,18 +24,20 @@ app.prepare().then(() => {
     res.send(await app.renderToHTML(req, res, '/home', req.query))
   );
 
-  server.get('/resume', async (req: any, res: any) => {
-    res.setHeader('Content-type', 'application/pdf');
-    res.send(await fs.readFileSync('./static/resume.pdf'));
-  });
-
   server.get('/static/*', async (req: any, res: any) => handle(req, res));
 
   server.get('/_next/*', async (req: any, res: any) => handle(req, res));
 
-  //server.get('*', async (req, res) => res.send(await app.renderToHTML(req, res, '/404', req.query)));
+  server.get('/pdf', async (req: any, res: any) => {
+    res.setHeader('Content-type', 'application/pdf');
+    res.send(await fs.readFileSync('./static/text.pdf'));
+  });
+
+  server.get('*', async (req: any, res: any) =>
+    res.send(await app.renderToHTML(req, res, '/404', req.query))
+  );
 
   server.listen(config.port, () => {
-    console.info(`VXN Frontend is listening on port ${config.port}`);
+    console.info(`Texbook frontend is listening on ${config.port}`);
   });
 });

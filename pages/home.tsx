@@ -1,16 +1,14 @@
 import React from 'react';
-
+import axios from 'axios';
 import Head from '../components/Head';
-import Menu from '../components/Menu';
-import Profile from '../components/Profile';
-import LargeCard from '../components/cards/LargeCard';
+import { Document, Page, pdfjs } from 'react-pdf';
+pdfjs.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.js`;
 
 interface HomeProps {}
 
 interface HomeState {
-  currentPage: string;
-  translate: number;
-  pageWidth: number;
+  currentPage: number;
+  data?: Blob;
 }
 
 export default class Home extends React.Component<HomeProps, HomeState> {
@@ -20,21 +18,40 @@ export default class Home extends React.Component<HomeProps, HomeState> {
     super(props);
 
     this.state = {
-      currentPage: 'Experience',
-      translate: 0,
-      pageWidth: 800
+      currentPage: 1
     };
   }
 
   componentDidMount = () => {
-    window.addEventListener('wheel', this.handleScroll);
+    axios
+      .get('/pdf')
+      .then((response: any) => {
+        const data = new Blob([response.data], { type: 'application/pdf' });
+        this.setState({
+          data
+        });
+      })
+      .catch((err) => console.error(err));
   };
+
+  onDocumentLoadSuccess({ numPages }) {
+    console.log('NumPages: ', numPages);
+  }
 
   render() {
     return (
       <>
         <Head title="Textbook Notes" description="Add notes to textbook PDFs" />
-        <div className="content"></div>
+        <div className="content">
+          <Document
+            file={'http://localhost/static/text.pdf'}
+            options={{ workerSrc: '/pdf.worker.js' }}
+            onLoadSuccess={this.onDocumentLoadSuccess}
+            loading={'Loading'}
+          >
+            <Page pageNumber={this.state.currentPage} />
+          </Document>
+        </div>
       </>
     );
   }

@@ -29,15 +29,15 @@ app.prepare().then(() => {
     const server = express_1.default();
     server.use(express_1.default.json());
     server.get('/', (req, res) => __awaiter(void 0, void 0, void 0, function* () { return res.send(yield app.renderToHTML(req, res, '/home', req.query)); }));
-    server.get('/resume', (req, res) => __awaiter(void 0, void 0, void 0, function* () {
-        res.setHeader('Content-type', 'application/pdf');
-        res.send(yield fs_1.default.readFileSync('./static/resume.pdf'));
-    }));
     server.get('/static/*', (req, res) => __awaiter(void 0, void 0, void 0, function* () { return handle(req, res); }));
     server.get('/_next/*', (req, res) => __awaiter(void 0, void 0, void 0, function* () { return handle(req, res); }));
-    //server.get('*', async (req, res) => res.send(await app.renderToHTML(req, res, '/404', req.query)));
+    server.get('/pdf', (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+        res.setHeader('Content-type', 'application/pdf');
+        res.send(yield fs_1.default.readFileSync('./static/text.pdf'));
+    }));
+    server.get('*', (req, res) => __awaiter(void 0, void 0, void 0, function* () { return res.send(yield app.renderToHTML(req, res, '/404', req.query)); }));
     server.listen(config.port, () => {
-        console.info(`VXN Frontend is listening on port ${config.port}`);
+        console.info(`Texbook frontend is listening on ${config.port}`);
     });
 });
 //# sourceMappingURL=server.js.map
