@@ -1,0 +1,27 @@
+/******* Canvas CSS ******/
+body {
+  overflow: hidden;
+}
+
+.canvas {
+  height: 100vh;
+  width: 100vw;
+  overflow: hidden;
+}
+
+.notes-layer {
+  position: absolute;
+}
+
+.document-layer {
+  position: absolute;
+}
+
+/******* DOCUMENT *********/
+
+.document-page {
+  border-radius: 5px;
+  margin-bottom: 10px;
+  overflow: hidden;
+  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.16), 0 3px 6px rgba(0, 0, 0, 0.23);
+}
