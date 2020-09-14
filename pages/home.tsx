@@ -20,7 +20,12 @@ export default class Home extends React.Component<HomeProps, HomeState> {
     return (
       <>
         <Head title="Textbook Notes" description="Add notes to textbook PDFs" />
-        <Canvas />
+        <div className="nav">
+          <h4>Hello</h4>
+        </div>
+        <div>
+          <Canvas />
+        </div>
       </>
     );
   }
