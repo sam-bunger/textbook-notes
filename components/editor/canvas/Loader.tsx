@@ -1,4 +1,5 @@
 import React from 'react';
+import { CircularProgress } from '@material-ui/core';
 
 interface LoaderProps {}
 
@@ -8,7 +9,9 @@ export class Loader extends React.Component<LoaderProps, LoaderState> {
   render() {
     return (
       <>
-        <h1>This is my loader</h1>
+        <div className="document-layer document-loader">
+          <CircularProgress />
+        </div>
       </>
     );
   }

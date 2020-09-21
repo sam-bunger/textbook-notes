@@ -2,8 +2,10 @@ import React from 'react';
 import _ from 'lodash';
 import { Document, Page, pdfjs } from 'react-pdf';
 pdfjs.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.js`;
-import { Point, Bound } from '../types/canvas';
+import { Point, Bound } from '../../types';
 import { Loader } from './Loader';
+import { listener, trigger } from '../../globalEvents/events';
+
 interface CanvasProps {}
 
 interface CanvasState {
@@ -13,8 +15,10 @@ interface CanvasState {
   rel: Point;
   dragging: boolean;
   spacePressed: boolean;
+  mouseIn: boolean;
   scale: number;
   pageWidth: number | null;
+  file: string;
 }
 
 const INITIAL_RENDER_WIDTH = 2000;
@@ -25,7 +29,7 @@ class Canvas extends React.Component<CanvasProps, CanvasState> {
   mousePos: Point;
   scaleBounds: Bound;
   canvasRef: React.RefObject<any>;
-  pageRefs: React.RefObject<any>[];
+  pageRef: React.RefObject<any>;
   throttleSetPageWidth: () => void;
 
   constructor(props: CanvasProps) {
@@ -39,7 +43,9 @@ class Canvas extends React.Component<CanvasProps, CanvasState> {
       dragging: false,
       spacePressed: false,
       scale: 1,
-      pageWidth: null
+      pageWidth: null,
+      file: null,
+      mouseIn: true
     };
 
     this.mousePos = {
@@ -53,7 +59,7 @@ class Canvas extends React.Component<CanvasProps, CanvasState> {
     };
 
     this.canvasRef = React.createRef();
-    this.pageRefs = [];
+    this.pageRef = null;
 
     this.throttleSetPageWidth = _.throttle(this.adjustScaleAndPosition, 500);
   }
@@ -65,6 +71,11 @@ class Canvas extends React.Component<CanvasProps, CanvasState> {
     window.addEventListener('wheel', this.scrollHandler);
     window.addEventListener('resize', this.throttleSetPageWidth);
     document.addEventListener('mousemove', this.onMouseMove);
+
+    /* Set listeners */
+    listener('PAGE_CHANGE', this.changePage);
+    listener('PDF_URL', this.updateFile);
+    listener('RETRACT_NAV', this.updateRetracted);
   };
 
   componentDidUpdate = (props, state) => {
@@ -82,6 +93,29 @@ class Canvas extends React.Component<CanvasProps, CanvasState> {
     window.removeEventListener('wheel', this.scrollHandler);
     window.removeEventListener('resize', this.throttleSetPageWidth);
   }
+
+  /* Handle Global Events */
+
+  updateRetracted = ({ retracted }) => {
+    this.setState({
+      mouseIn: retracted
+    });
+  };
+
+  changePage = ({ page }) => {
+    this.setState({
+      currentPage: page
+    });
+  };
+
+  updateFile = ({ url }) => {
+    console.log('UPDATING FILE!');
+    this.setState({
+      file: url
+    });
+  };
+
+  /* Handle Scale */
 
   adjustScaleAndPosition = () => {
     const width = this.canvasRef.current.offsetWidth;
@@ -103,6 +137,12 @@ class Canvas extends React.Component<CanvasProps, CanvasState> {
 
   /* Page Handlers */
 
+  enterMouse(mouseIn: boolean) {
+    this.setState({
+      mouseIn
+    });
+  }
+
   keyDownHandler = (e) => {
     if (e.keyCode === 32) {
       this.setState({
@@ -119,16 +159,8 @@ class Canvas extends React.Component<CanvasProps, CanvasState> {
     }
   };
 
-  currentPageHandler = () => {
-    console.log('PAGE HANDLER');
-    const page = Math.round(this.state.pos.y / -750 + 1);
-    if (this.state.currentPage !== page) {
-      console.log('UPDATE PAGE');
-      this.setState({ currentPage: page });
-    }
-  };
-
   scrollHandler = (e) => {
+    if (!this.state.mouseIn) return;
     if (!this.state.spacePressed) {
       const pos = this.state.pos;
       this.setState({
@@ -137,7 +169,6 @@ class Canvas extends React.Component<CanvasProps, CanvasState> {
           y: pos.y + e.wheelDeltaY
         }
       });
-      this.currentPageHandler();
     } else {
       const newScale: number = this.state.scale + e.wheelDelta / 1000;
       if (newScale < this.scaleBounds.low || newScale > this.scaleBounds.high)
@@ -165,7 +196,7 @@ class Canvas extends React.Component<CanvasProps, CanvasState> {
   };
 
   onMouseDown = (e) => {
-    // only left mouse button
+    if (!this.state.mouseIn) return;
     if (e.button !== 0) return;
     if (!this.state.spacePressed) return;
 
@@ -203,35 +234,21 @@ class Canvas extends React.Component<CanvasProps, CanvasState> {
     e.preventDefault();
   };
 
-  /* Handle Documents */
-
   onDocumentLoadSuccess = ({ numPages }) => {
     this.setState({ totalPages: numPages });
+    trigger('TOTAL_PAGES', { totalPages: numPages });
   };
 
-  renderPages = () => {
-    const cp = this.state.currentPage;
-    const surr = 2;
-    const items = [];
-    for (let i = cp - surr; i < cp + surr; i++) {
-      if (i < 1 || i > this.state.totalPages) {
-        this.pageRefs.push(null);
-        continue;
-      }
-
-      const ref = React.createRef();
-      this.pageRefs.push(ref);
-
-      items.push(
-        <Page
-          ref={ref}
-          className="document-page"
-          pageNumber={i}
-          width={INITIAL_RENDER_WIDTH}
-        />
-      );
-    }
-    return items;
+  renderPage = () => {
+    this.pageRef = React.createRef();
+    return (
+      <Page
+        ref={this.pageRef}
+        className="document-page"
+        pageNumber={this.state.currentPage}
+        width={INITIAL_RENDER_WIDTH}
+      />
+    );
   };
 
   render() {
@@ -250,6 +267,8 @@ class Canvas extends React.Component<CanvasProps, CanvasState> {
         <div
           className="canvas"
           onMouseDown={this.onMouseDown}
+          onMouseEnter={() => this.enterMouse(true)}
+          onMouseLeave={() => this.enterMouse(false)}
           style={{ cursor }}
           ref={this.canvasRef}
         >
@@ -258,11 +277,11 @@ class Canvas extends React.Component<CanvasProps, CanvasState> {
           </div>
           <div className="document-layer" style={positionWithScale}>
             <Document
-              file={'http://localhost/static/text2.pdf'}
+              file={this.state.file}
               onLoadSuccess={this.onDocumentLoadSuccess}
               loading={<Loader></Loader>}
             >
-              {this.renderPages()}
+              {this.renderPage()}
             </Document>
           </div>
         </div>

@@ -1,14 +1,157 @@
+/* *** Colors Dark to light ***
+ * #000000
+ * #141414
+ * #1B1B1B
+ * #bdbdbd
+ * #E1E1E1
+ * #F3F3F3
+ * #FFFFFF
+ */
+
 /******* Canvas CSS ******/
 body {
   overflow: hidden;
   margin: 0;
 }
 
+input::-webkit-outer-spin-button,
+input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+/* Firefox */
+input[type='number'] {
+  -moz-appearance: textfield;
+}
+
+p {
+  font-family: 'Montserrat', sans-serif;
+}
+
+/**** MATERIAL CSS ****/
+
+.icon-recolor {
+  color: #bdbdbd;
+}
+
+.icon-larger {
+  transform: 'scale(1.3)';
+}
+
+.thin-textfield {
+  width: 30px;
+  color: black;
+}
+
 /******* NAV BAR **********/
 
 .nav {
   position: relative;
+  background-color: #ffffff;
+  width: 100%;
+  height: 6vh;
   z-index: 2;
+  border-bottom: 1px solid #e1e1e1;
+}
+
+.nav p {
+  margin: 0;
+}
+
+.nav-items-left {
+  display: flex;
+  height: 100%;
+  align-content: space-evenly;
+}
+
+.nav-item {
+  padding: 0 20px;
+  display: flex;
+  align-items: center;
+  height: 100%;
+}
+
+.nav-logo {
+  width: 175px;
+  padding: 0 50px;
+  display: flex;
+  align-items: center;
+  height: 100%;
+}
+
+/****** EDITOR NAV ******/
+
+.editornav {
+  position: absolute;
+  height: 100%;
+  background-color: #ffffff;
+  border-right: 1px solid #e1e1e1;
+  z-index: 2;
+}
+
+.editornav-tags {
+  display: flex;
+  justify-content: space-evenly;
+  height: 50px;
+  border-bottom: 1px solid #e1e1e1;
+}
+
+.editornav-navigator {
+  display: flex;
+  padding: 0 20px;
+  align-items: center;
+  height: 50px;
+}
+.editornav-navigator:hover {
+  cursor: pointer;
+}
+
+.editornav-notes {
+  display: flex;
+  padding: 0 20px;
+  align-items: center;
+  height: 50px;
+}
+.editornav-notes:hover {
+  cursor: pointer;
+}
+
+.editornav-toggle {
+  display: flex;
+  padding: 0 20px;
+  align-items: center;
+  height: 50px;
+}
+.editornav-toggle:hover {
+  cursor: pointer;
+}
+
+.editornav-div {
+  border-right: 1px solid #e1e1e1;
+  height: 50px;
+}
+
+/******* NAVIGATE ********/
+
+.navigate {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.navigate-pager {
+  height: 70px;
+  display: flex;
+  align-content: space-between;
+  justify-content: center;
+}
+
+.navigate-pager-item {
+  height: 100%;
+  display: flex;
+  align-items: center;
+  padding: 0 10px;
 }
 
 /******* CANVAS ***********/
@@ -36,5 +179,14 @@ body {
   border-radius: 5px;
   margin-bottom: 30px;
   overflow: hidden;
-  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.16), 0 3px 6px rgba(0, 0, 0, 0.23);
+  box-shadow: 0px 1px 16px rgba(0, 0, 0, 0.16), 0 3px 16px rgba(0, 0, 0, 0.23);
+}
+
+.document-loader {
+  display: flex;
+  align-items: center;
+  height: 2588px;
+  width: 2000px;
+  box-shadow: 0px 1px 16px rgba(0, 0, 0, 0.16), 0 3px 16px rgba(0, 0, 0, 0.23);
+  background-color: white;
 }
