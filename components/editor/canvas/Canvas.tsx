@@ -5,6 +5,7 @@ pdfjs.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/$
 import { Point, Bound } from '../../types';
 import { Loader } from './Loader';
 import { listener, trigger } from '../../globalEvents/events';
+import HighlightMenu from '../notes/HighlightMenu';
 
 interface CanvasProps {}
 
@@ -68,9 +69,10 @@ class Canvas extends React.Component<CanvasProps, CanvasState> {
     this.adjustScaleAndPosition();
     document.addEventListener('keydown', this.keyDownHandler, false);
     document.addEventListener('keyup', this.keyUpHandler, false);
-    window.addEventListener('wheel', this.scrollHandler);
-    window.addEventListener('resize', this.throttleSetPageWidth);
+    document.addEventListener('wheel', this.scrollHandler);
+    document.addEventListener('resize', this.throttleSetPageWidth);
     document.addEventListener('mousemove', this.onMouseMove);
+    document.addEventListener('mouseup', this.onMouseUp);
 
     /* Set listeners */
     listener('PAGE_CHANGE', this.changePage);
@@ -78,20 +80,15 @@ class Canvas extends React.Component<CanvasProps, CanvasState> {
     listener('RETRACT_NAV', this.updateRetracted);
   };
 
-  componentDidUpdate = (props, state) => {
-    if (this.state.dragging && !state.dragging) {
-      document.addEventListener('mouseup', this.onMouseUp);
-    } else if (!this.state.dragging && state.dragging) {
-      document.removeEventListener('mouseup', this.onMouseUp);
-    }
-  };
+  componentDidUpdate = (props, state) => {};
 
   componentWillUnmount() {
     document.removeEventListener('mousemove', this.onMouseMove);
     document.removeEventListener('keydown', this.keyDownHandler, false);
     document.removeEventListener('keyup', this.keyUpHandler, false);
-    window.removeEventListener('wheel', this.scrollHandler);
-    window.removeEventListener('resize', this.throttleSetPageWidth);
+    document.removeEventListener('mouseup', this.onMouseUp);
+    document.removeEventListener('wheel', this.scrollHandler);
+    document.removeEventListener('resize', this.throttleSetPageWidth);
   }
 
   /* Handle Global Events */
@@ -145,6 +142,7 @@ class Canvas extends React.Component<CanvasProps, CanvasState> {
 
   keyDownHandler = (e) => {
     if (e.keyCode === 32) {
+      trigger('CANVAS_LOCKED', { locked: true });
       this.setState({
         spacePressed: true
       });
@@ -153,8 +151,10 @@ class Canvas extends React.Component<CanvasProps, CanvasState> {
 
   keyUpHandler = (e) => {
     if (e.keyCode === 32) {
+      trigger('CANVAS_LOCKED', { locked: false });
       this.setState({
-        spacePressed: false
+        spacePressed: false,
+        dragging: false
       });
     }
   };
@@ -214,6 +214,8 @@ class Canvas extends React.Component<CanvasProps, CanvasState> {
   };
 
   onMouseUp = (e) => {
+    if (!this.state.mouseIn) return;
+    if (!this.state.spacePressed) return;
     this.setState({ dragging: false });
     e.stopPropagation();
     e.preventDefault();
@@ -272,9 +274,8 @@ class Canvas extends React.Component<CanvasProps, CanvasState> {
           style={{ cursor }}
           ref={this.canvasRef}
         >
-          <div className="notes-layer" style={positionWithScale}>
-            {/* <h1> Nice </h1> */}
-          </div>
+          <HighlightMenu />
+          <div className="notes-layer" style={positionWithScale}></div>
           <div className="document-layer" style={positionWithScale}>
             <Document
               file={this.state.file}

@@ -20,23 +20,39 @@ app.prepare().then(() => {
 
   server.use(express.json());
 
-  server.get('/', async (req: any, res: any) =>
-    res.send(await app.renderToHTML(req, res, '/home', req.query))
-  );
-
+  /*** WEB PAGE CONTENT ***/
   server.get('/static/*', async (req: any, res: any) => handle(req, res));
 
   server.get('/_next/*', async (req: any, res: any) => handle(req, res));
 
-  server.get('/pdf', async (req: any, res: any) => {
-    res.setHeader('Content-type', 'application/pdf');
-    res.send(await fs.readFileSync('./static/text.pdf'));
+  /*** WEB PAGES ***/
+
+  server.get('/', async (req: any, res: any) =>
+    res.send(await app.renderToHTML(req, res, '/home', req.query))
+  );
+
+  server.get('/editor', async (req: any, res: any) =>
+    res.send(await app.renderToHTML(req, res, '/home', req.query))
+  );
+
+  /*** WEB CONTENT ***/
+
+  server.get('/api/getNotes', async (req: any, res: any) => {
+    res.send({
+      document: 'http://localhost/static/text.pdf',
+      currentPage: 1
+    });
   });
+
+  server.post('/editor/saveNotes', async (req: any, res: any) => {});
+
+  /*** 404 PAGE ***/
 
   server.get('*', async (req: any, res: any) =>
     res.send(await app.renderToHTML(req, res, '/404', req.query))
   );
 
+  /*** LISTEN ***/
   server.listen(config.port, () => {
     console.info(`Texbook frontend is listening on ${config.port}`);
   });

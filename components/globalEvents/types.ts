@@ -3,7 +3,8 @@ export type EventTypes =
   | 'PAGE_CHANGE'
   | 'TOTAL_PAGES'
   | 'PDF_URL'
-  | 'RETRACT_NAV';
+  | 'RETRACT_NAV'
+  | 'CANVAS_LOCKED';
 
 /*** Event Data ***/
 export type PageChange = {
@@ -22,7 +23,16 @@ export type RetractNav = {
   retracted: boolean;
 };
 
-export type EventData = PageChange | TotalPages | PDFURL | RetractNav;
+export type CanvasLocked = {
+  locked: boolean;
+};
+
+export type EventData =
+  | PageChange
+  | TotalPages
+  | PDFURL
+  | RetractNav
+  | CanvasLocked;
 
 /*** STATE ***/
 export type EventDataCallback = (data: EventData) => void;

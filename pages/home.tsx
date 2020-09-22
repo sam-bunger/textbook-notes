@@ -3,6 +3,7 @@ import Head from '../components/Head';
 import Canvas from '../components/editor/canvas/Canvas';
 import Nav from '../components/nav/Nav';
 import { listener, trigger } from '../components/globalEvents/events';
+import { getNotes } from '../components/networkAPI/network';
 import EditorNav from '../components/editor/editorNav/editorNav';
 
 interface HomeProps {}
@@ -24,10 +25,16 @@ export default class Home extends React.Component<HomeProps, HomeState> {
   }
 
   componentDidMount = () => {
-    listener('PAGE_CHANGE', this.pageChange);
-    listener('TOTAL_PAGES', this.setPageTotal);
-    trigger('PDF_URL', { url: 'http://localhost/static/text.pdf' });
-    trigger('PAGE_CHANGE', { page: 1 });
+    getNotes((err, data) => {
+      if (err) {
+        console.error(err);
+        return;
+      }
+      listener('PAGE_CHANGE', this.pageChange);
+      listener('TOTAL_PAGES', this.setPageTotal);
+      trigger('PDF_URL', { url: data.document });
+      trigger('PAGE_CHANGE', { page: data.currentPage });
+    });
   };
 
   setPageTotal = ({ totalPages }) => {
@@ -56,5 +63,3 @@ export default class Home extends React.Component<HomeProps, HomeState> {
     );
   }
 }
-
-// module.exports = Home;

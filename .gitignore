@@ -1,6 +1,7 @@
 /node_modules
 /.next
 /.env
+/documents
 
 next-env.d.ts
 tsconfig.json

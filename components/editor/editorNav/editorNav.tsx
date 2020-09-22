@@ -49,9 +49,13 @@ export default class EditorNav extends React.Component<
 
     const mode =
       this.state.mode === 'navigate' ? (
-        <Navigate retracted={this.state.retracted} />
+        <div style={{ display: 'block' }}>
+          <Navigate retracted={this.state.retracted} />
+        </div>
       ) : (
-        <div />
+        <div style={{ display: 'none' }}>
+          <Navigate retracted={this.state.retracted} />
+        </div>
       );
 
     const nav = this.state.retracted ? (

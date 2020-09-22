@@ -14,7 +14,6 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = __importDefault(require("express"));
 const next_1 = __importDefault(require("next"));
-const fs_1 = __importDefault(require("fs"));
 const dev = process.env.NODE_ENV !== 'production';
 const app = next_1.default({ dev });
 const handle = app.getRequestHandler();
@@ -28,14 +27,23 @@ const config = dev
 app.prepare().then(() => {
     const server = express_1.default();
     server.use(express_1.default.json());
-    server.get('/', (req, res) => __awaiter(void 0, void 0, void 0, function* () { return res.send(yield app.renderToHTML(req, res, '/home', req.query)); }));
+    /*** WEB PAGE CONTENT ***/
     server.get('/static/*', (req, res) => __awaiter(void 0, void 0, void 0, function* () { return handle(req, res); }));
     server.get('/_next/*', (req, res) => __awaiter(void 0, void 0, void 0, function* () { return handle(req, res); }));
-    server.get('/pdf', (req, res) => __awaiter(void 0, void 0, void 0, function* () {
-        res.setHeader('Content-type', 'application/pdf');
-        res.send(yield fs_1.default.readFileSync('./static/text.pdf'));
+    /*** WEB PAGES ***/
+    server.get('/', (req, res) => __awaiter(void 0, void 0, void 0, function* () { return res.send(yield app.renderToHTML(req, res, '/home', req.query)); }));
+    server.get('/editor', (req, res) => __awaiter(void 0, void 0, void 0, function* () { return res.send(yield app.renderToHTML(req, res, '/home', req.query)); }));
+    /*** WEB CONTENT ***/
+    server.get('/api/getNotes', (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+        res.send({
+            document: 'http://localhost/static/text.pdf',
+            currentPage: 1
+        });
     }));
+    server.post('/editor/saveNotes', (req, res) => __awaiter(void 0, void 0, void 0, function* () { }));
+    /*** 404 PAGE ***/
     server.get('*', (req, res) => __awaiter(void 0, void 0, void 0, function* () { return res.send(yield app.renderToHTML(req, res, '/404', req.query)); }));
+    /*** LISTEN ***/
     server.listen(config.port, () => {
         console.info(`Texbook frontend is listening on ${config.port}`);
     });
