@@ -3,7 +3,11 @@ import { listener, trigger } from '../../globalEvents/events';
 import { Point } from '../../types';
 import AddCommentIcon from '@material-ui/icons/AddComment';
 
-interface HighlightMenuProps {}
+type CreateReference = (boundingRect: DOMRect, text: string) => void;
+
+interface HighlightMenuProps {
+  createReference: CreateReference;
+}
 
 interface HighlightMenuState {
   locked: boolean;
@@ -18,6 +22,9 @@ export default class HighlightMenu extends React.Component<
   HighlightMenuState
 > {
   state: HighlightMenuState;
+  currentRect: DOMRect;
+  currentText: string;
+  createReference: CreateReference;
 
   constructor(props: HighlightMenuProps) {
     super(props);
@@ -28,6 +35,9 @@ export default class HighlightMenu extends React.Component<
         visible: false
       }
     };
+    this.currentRect = null;
+    this.currentText = null;
+    this.createReference = props.createReference;
   }
 
   componentDidMount = () => {
@@ -66,7 +76,6 @@ export default class HighlightMenu extends React.Component<
 
   onMouseUp = (e) => {
     if (this.state.locked) return;
-
     const select = document.getSelection();
     if (select.type == 'Range') {
       const r = select.getRangeAt(0).getBoundingClientRect();
@@ -76,6 +85,8 @@ export default class HighlightMenu extends React.Component<
           visible: true
         }
       });
+      this.currentRect = r;
+      this.currentText = select.toString();
     } else {
       this.setState({
         highlightMenu: {
@@ -83,7 +94,14 @@ export default class HighlightMenu extends React.Component<
           visible: false
         }
       });
+      this.currentRect = null;
+      this.currentText = null;
     }
+  };
+
+  handleClick = () => {
+    if (!this.currentRect || !this.currentText) return;
+    this.createReference(this.currentRect, this.currentText);
   };
 
   render() {
@@ -95,6 +113,7 @@ export default class HighlightMenu extends React.Component<
             display: this.state.highlightMenu.visible ? 'block' : 'none',
             transform: `translate(${this.state.highlightMenu.pos.x}px, ${this.state.highlightMenu.pos.y}px)`
           }}
+          onClick={this.handleClick}
         >
           <AddCommentIcon className="icon-recolor repositon-icon" />
         </div>

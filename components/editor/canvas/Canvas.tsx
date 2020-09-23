@@ -2,10 +2,11 @@ import React from 'react';
 import _ from 'lodash';
 import { Document, Page, pdfjs } from 'react-pdf';
 pdfjs.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.js`;
-import { Point, Bound } from '../../types';
+import { Point, Bound, Rect } from '../../types';
 import { Loader } from './Loader';
 import { listener, trigger } from '../../globalEvents/events';
-import HighlightMenu from '../notes/HighlightMenu';
+import { convertRectCoordinates } from '../utils';
+import HighlightMenu from './HighlightMenu';
 
 interface CanvasProps {}
 
@@ -20,6 +21,7 @@ interface CanvasState {
   scale: number;
   pageWidth: number | null;
   file: string;
+  testRect: Rect | null;
 }
 
 const INITIAL_RENDER_WIDTH = 2000;
@@ -46,7 +48,8 @@ class Canvas extends React.Component<CanvasProps, CanvasState> {
       scale: 1,
       pageWidth: null,
       file: null,
-      mouseIn: true
+      mouseIn: true,
+      testRect: null
     };
 
     this.mousePos = {
@@ -94,22 +97,15 @@ class Canvas extends React.Component<CanvasProps, CanvasState> {
   /* Handle Global Events */
 
   updateRetracted = ({ retracted }) => {
-    this.setState({
-      mouseIn: retracted
-    });
+    this.setState({ mouseIn: retracted });
   };
 
   changePage = ({ page }) => {
-    this.setState({
-      currentPage: page
-    });
+    this.setState({ currentPage: page });
   };
 
   updateFile = ({ url }) => {
-    console.log('UPDATING FILE!');
-    this.setState({
-      file: url
-    });
+    this.setState({ file: url });
   };
 
   /* Handle Scale */
@@ -231,9 +227,17 @@ class Canvas extends React.Component<CanvasProps, CanvasState> {
         y: e.pageY - this.state.rel.y
       }
     });
-    //this.currentPageHandler();
     e.stopPropagation();
     e.preventDefault();
+  };
+
+  createReference = (boundingRect: Rect, text: string) => {
+    const convertedRect: Rect = convertRectCoordinates(
+      boundingRect,
+      this.state.pos,
+      this.state.scale
+    );
+    this.setState({ testRect: convertedRect });
   };
 
   onDocumentLoadSuccess = ({ numPages }) => {
@@ -264,6 +268,16 @@ class Canvas extends React.Component<CanvasProps, CanvasState> {
       transform: `translate(${this.state.pos.x}px, ${this.state.pos.y}px) scale(${this.state.scale})`
     };
 
+    const testRectStyle = this.state.testRect
+      ? {
+          transform: `translate(${this.state.testRect.x}px, ${this.state.testRect.y}px)`,
+          width: `${this.state.testRect.width}px`,
+          height: `${this.state.testRect.height}px`
+        }
+      : {
+          display: 'none'
+        };
+
     return (
       <>
         <div
@@ -274,8 +288,10 @@ class Canvas extends React.Component<CanvasProps, CanvasState> {
           style={{ cursor }}
           ref={this.canvasRef}
         >
-          <HighlightMenu />
-          <div className="notes-layer" style={positionWithScale}></div>
+          <HighlightMenu createReference={this.createReference} />
+          <div className="notes-layer" style={positionWithScale}>
+            <div className="rect" style={testRectStyle} />
+          </div>
           <div className="document-layer" style={positionWithScale}>
             <Document
               file={this.state.file}
