@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg
+   xmlns:dc="http://purl.org/dc/elements/1.1/"
+   xmlns:cc="http://creativecommons.org/ns#"
+   xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+   xmlns:svg="http://www.w3.org/2000/svg"
+   xmlns="http://www.w3.org/2000/svg"
+   style="display:inline"
+   version="1.1"
+   id="svg2"
+   height="90"
+   width="10">
+  <title
+     id="title3763">Accolade V9</title>
+  <defs
+     id="defs4" />
+  <metadata
+     id="metadata7">
+    <rdf:RDF>
+      <cc:Work
+         rdf:about="">
+        <dc:format>image/svg+xml</dc:format>
+        <dc:type
+           rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
+        <dc:title>Accolade V9</dc:title>
+        <cc:license
+           rdf:resource="http://creativecommons.org/licenses/publicdomain/" />
+        <dc:date>13 novembre 2012</dc:date>
+        <dc:description>caractère pour fr.wikisource.org</dc:description>
+      </cc:Work>
+      <cc:License
+         rdf:about="http://creativecommons.org/licenses/publicdomain/">
+        <cc:permits
+           rdf:resource="http://creativecommons.org/ns#Reproduction" />
+        <cc:permits
+           rdf:resource="http://creativecommons.org/ns#Distribution" />
+        <cc:permits
+           rdf:resource="http://creativecommons.org/ns#DerivativeWorks" />
+      </cc:License>
+    </rdf:RDF>
+  </metadata>
+  <g
+     style="display:inline"
+     id="layer2">
+    <path id="path3774" d="M10,45c-1.1,0.5-1.9,1.4-2.4,2.5C7.1,48.7,7,50,7,51.3c-0.2,8.7,0.1,17.5,0.1,26.2c0,1.7,0,3.4-0.4,5.1
+		s-0.9,3.3-2,4.6C3.5,88.7,1.8,89.7,0,90c1.1-0.6,1.9-1.6,2.4-2.7c0.7-1.5,0.7-3.3,0.6-5c-0.1-8.3,0-16.6,0-24.9
+		c0-1.7,0-3.4,0.2-5.1C3.5,50.7,4,49,5,47.6c0.8-1.1,1.8-2,3-2.6c-1.1-0.5-2.1-1.3-2.8-2.2c-0.8-1.1-1.3-2.4-1.6-3.7
+		c-0.3-1.3-0.4-2.7-0.4-4C2.7,26.7,3.3,18.3,3.2,9.9C3.1,7.5,3,4.9,2,2.7c-0.5-1-1.2-2-2-2.7c2.1,0.3,4.1,1.6,5.3,3.4
+		c0.9,1.3,1.3,2.9,1.6,4.5c0.2,1.6,0.2,3.2,0.2,4.8c-0.1,8.9-0.1,17.9,0,26.8c0,1,0,2.1,0.4,3.1C7.9,43.6,8.9,44.6,10,45z"/>
+  </g>
+</svg>
+

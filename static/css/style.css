@@ -227,3 +227,29 @@ p {
   box-shadow: 0px 1px 16px rgba(0, 0, 0, 0.16), 0 3px 16px rgba(0, 0, 0, 0.23);
   background-color: white;
 }
+
+.react-pdf__Page__annotations {
+  display: none;
+}
+
+.react-pdf__Page__textContent :hover {
+  cursor: text;
+}
+
+.react-pdf__Page__textContent span {
+  opacity: 0.1;
+}
+
+.react-pdf__Page__textContent span::selection {
+  background-color: blue;
+}
+
+.react-pdf__Document {
+  line-height: initial;
+}
+
+/********** REFERENCE MODEL ***********/
+.reference-model-bracket {
+  position: absolute;
+  transform-origin: top left;
+}

@@ -1,13 +1,12 @@
-import { Reference } from '../editor/layers/types';
+import { NoteStorage } from '../editor/NoteStorage';
 
 /*** Event Types ***/
 export type EventTypes =
   | 'PAGE_CHANGE'
   | 'TOTAL_PAGES'
-  | 'PDF_URL'
+  | 'LOAD_NOTES'
   | 'RETRACT_NAV'
-  | 'CANVAS_LOCKED'
-  | 'LOAD_REFERENCE';
+  | 'CANVAS_LOCKED';
 
 /*** Event Data ***/
 export type PageChange = {
@@ -18,9 +17,7 @@ export type TotalPages = {
   totalPages: number;
 };
 
-export type PDFURL = {
-  url: string;
-};
+export type LoadNotes = NoteStorage;
 
 export type RetractNav = {
   retracted: boolean;
@@ -30,17 +27,12 @@ export type CanvasLocked = {
   locked: boolean;
 };
 
-export type LoadReference = {
-  reference: Reference;
-};
-
 export type EventData =
   | PageChange
   | TotalPages
-  | PDFURL
+  | LoadNotes
   | RetractNav
-  | CanvasLocked
-  | LoadReference;
+  | CanvasLocked;
 
 /*** STATE ***/
 export type EventDataCallback = (data: EventData) => void;

@@ -102,6 +102,12 @@ export default class HighlightMenu extends React.Component<
   handleClick = () => {
     if (!this.currentRect || !this.currentText) return;
     this.createReference(this.currentRect, this.currentText);
+    this.setState({
+      highlightMenu: {
+        pos: { x: 0, y: 0 },
+        visible: false
+      }
+    });
   };
 
   render() {

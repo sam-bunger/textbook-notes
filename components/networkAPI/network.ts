@@ -12,7 +12,8 @@ export function getNotes(cb: (err: string, data: any) => void) {
       cb(null, response.data);
     })
     .catch((error) => {
-      cb(error.response.data, null);
+      console.log(error);
+      cb(error.toString(), null);
     });
 }
 

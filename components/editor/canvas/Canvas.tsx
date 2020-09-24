@@ -7,6 +7,9 @@ import { Loader } from './Loader';
 import { listener, trigger } from '../../globalEvents/events';
 import { convertRectCoordinates } from '../utils';
 import HighlightMenu from './HighlightMenu';
+import { NoteStorage } from '../NoteStorage';
+import { LayerManager } from '../layers/LayerManager';
+import ReferenceLayer from '../layers/references/ReferenceLayer';
 
 interface CanvasProps {}
 
@@ -21,10 +24,11 @@ interface CanvasState {
   scale: number;
   pageWidth: number | null;
   file: string;
+  lm: LayerManager | null;
   testRect: Rect | null;
 }
 
-const INITIAL_RENDER_WIDTH = 2000;
+const INITIAL_RENDER_WIDTH = 3000;
 const INTIAL_PAGE_SCALE = 0.5;
 
 class Canvas extends React.Component<CanvasProps, CanvasState> {
@@ -49,6 +53,7 @@ class Canvas extends React.Component<CanvasProps, CanvasState> {
       pageWidth: null,
       file: null,
       mouseIn: true,
+      lm: null,
       testRect: null
     };
 
@@ -79,7 +84,7 @@ class Canvas extends React.Component<CanvasProps, CanvasState> {
 
     /* Set listeners */
     listener('PAGE_CHANGE', this.changePage);
-    listener('PDF_URL', this.updateFile);
+    listener('LOAD_NOTES', this.loadNotes);
     listener('RETRACT_NAV', this.updateRetracted);
   };
 
@@ -104,8 +109,9 @@ class Canvas extends React.Component<CanvasProps, CanvasState> {
     this.setState({ currentPage: page });
   };
 
-  updateFile = ({ url }) => {
-    this.setState({ file: url });
+  loadNotes = (notesData: NoteStorage) => {
+    this.setState({ file: notesData.document });
+    this.setState({ lm: new LayerManager(notesData) });
   };
 
   /* Handle Scale */
@@ -237,12 +243,28 @@ class Canvas extends React.Component<CanvasProps, CanvasState> {
       this.state.pos,
       this.state.scale
     );
+    this.state.lm.createReference({
+      id: 'replace_this',
+      bounds: convertedRect,
+      text,
+      ports: [null, null]
+    });
     this.setState({ testRect: convertedRect });
   };
 
   onDocumentLoadSuccess = ({ numPages }) => {
     this.setState({ totalPages: numPages });
     trigger('TOTAL_PAGES', { totalPages: numPages });
+    const textLayers = document.querySelectorAll(
+      '.react-pdf__Page__textContent'
+    );
+    textLayers.forEach((layer) => {
+      const { style } = layer;
+      style.top = '0';
+      style.left = '0';
+      style.transform = '';
+      style.display = 'none';
+    });
   };
 
   renderPage = () => {
@@ -278,6 +300,8 @@ class Canvas extends React.Component<CanvasProps, CanvasState> {
           display: 'none'
         };
 
+    const layers = this.state.lm ? <ReferenceLayer lm={this.state.lm} /> : null;
+
     return (
       <>
         <div
@@ -290,7 +314,8 @@ class Canvas extends React.Component<CanvasProps, CanvasState> {
         >
           <HighlightMenu createReference={this.createReference} />
           <div className="notes-layer" style={positionWithScale}>
-            <div className="rect" style={testRectStyle} />
+            {layers}
+            {/* <div className="rect" style={testRectStyle} /> */}
           </div>
           <div className="document-layer" style={positionWithScale}>
             <Document

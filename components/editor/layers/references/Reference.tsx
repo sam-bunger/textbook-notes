@@ -1,32 +1,69 @@
 import React from 'react';
-import { listener, trigger } from '../../../globalEvents/events';
-import { Rect } from '../../../types';
+import { LayerManager } from '../LayerManager';
+import { Reference, ReferenceId } from '../../NoteStorage';
 
-interface ReferenceProps {
-  bounds: Rect;
-  text: string;
-  leftJoin:
+interface ReferenceModelProps {
+  lm: LayerManager;
+  id: ReferenceId;
 }
 
-interface ReferenceState {
-  
-  
-}
+type ReferenceModelState = {
+  reference: Reference;
+  visible: boolean;
+};
 
-export default class Reference extends React.Component<
-  ReferenceProps,
-  ReferenceState
+export default class ReferenceModel extends React.Component<
+  ReferenceModelProps,
+  ReferenceModelState
 > {
-  state: ReferenceState;
+  state: ReferenceModelState;
 
-  constructor(props: ReferenceProps) {
+  constructor(props: ReferenceModelProps) {
     super(props);
-    this.state = {};
+    this.state = {
+      reference: props.lm.getReferenceById(props.id),
+      visible: true
+    };
   }
 
-  componentDidMount = () => {};
+  componentDidMount = () => {
+    this.props.lm.addObjectHandler(this.props.id, (data: any) => {
+      this.setState(data);
+    });
+  };
+
+  build = () => {
+    const referencePorts = [];
+    if (this.state.reference.ports[0]) referencePorts.push(this.buildPort(0));
+    if (this.state.reference.ports[1]) referencePorts.push(this.buildPort(1));
+    if (!referencePorts.length) referencePorts.push(this.buildPort(0));
+    return referencePorts;
+  };
+
+  buildPort = (type: 0 | 1) => {
+    const bounds = this.state.reference.bounds;
+    const style = type
+      ? {
+          transform: `translate(${bounds.x}px, ${bounds.y}px)`,
+          height: `${bounds.height}px`,
+          width: `${bounds.height * 0.1 + 15}px`
+        }
+      : {
+          transform: `translate(${bounds.x + bounds.width}px, ${bounds.y}px)`,
+          height: `${bounds.height}px`,
+          width: `${bounds.height * 0.01 + 15}px`
+        };
+    const svg = type
+      ? '/static/svg/bracket_left.svg'
+      : '/static/svg/bracket_right.svg';
+    return <img className="reference-model-bracket" style={style} src={svg} />;
+  };
 
   render() {
-    return <></>;
+    return (
+      <>
+        <div className="reference-model">{this.build()}</div>
+      </>
+    );
   }
 }

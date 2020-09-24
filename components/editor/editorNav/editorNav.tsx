@@ -1,5 +1,5 @@
 import React from 'react';
-import Navigate from '../editorNavContent/Navigate';
+import Navigate from './Navigate';
 import ArrowBackIosIcon from '@material-ui/icons/ArrowBackIos';
 import ArrowForwardIosIcon from '@material-ui/icons/ArrowForwardIos';
 import { listener, trigger } from '../../globalEvents/events';

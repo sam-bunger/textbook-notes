@@ -5,6 +5,7 @@ import Nav from '../components/nav/Nav';
 import { listener, trigger } from '../components/globalEvents/events';
 import { getNotes } from '../components/networkAPI/network';
 import EditorNav from '../components/editor/editorNav/editorNav';
+import { NotesStorage } from '../components/editor/NoteStorage';
 
 interface HomeProps {}
 
@@ -25,14 +26,14 @@ export default class Home extends React.Component<HomeProps, HomeState> {
   }
 
   componentDidMount = () => {
-    getNotes((err, data) => {
+    getNotes((err: string, data: NotesStorage) => {
       if (err) {
         console.error(err);
         return;
       }
       listener('PAGE_CHANGE', this.pageChange);
       listener('TOTAL_PAGES', this.setPageTotal);
-      trigger('PDF_URL', { url: data.document });
+      trigger('LOAD_NOTES', data);
       trigger('PAGE_CHANGE', { page: data.currentPage });
     });
   };

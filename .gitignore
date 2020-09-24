@@ -1,9 +1,8 @@
 /node_modules
 /.next
 /.env
-/documents
+/dist
 
 next-env.d.ts
 tsconfig.json
-robots.txt
 /static/text2.pdf
