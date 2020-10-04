@@ -14,6 +14,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = __importDefault(require("express"));
 const next_1 = __importDefault(require("next"));
+const fs_1 = __importDefault(require("fs"));
 const dev = process.env.NODE_ENV !== 'production';
 const app = next_1.default({ dev });
 const handle = app.getRequestHandler();
@@ -33,6 +34,35 @@ app.prepare().then(() => {
     /*** WEB PAGES ***/
     server.get('/', (req, res) => __awaiter(void 0, void 0, void 0, function* () { return res.send(yield app.renderToHTML(req, res, '/home', req.query)); }));
     server.get('/editor', (req, res) => __awaiter(void 0, void 0, void 0, function* () { return res.send(yield app.renderToHTML(req, res, '/home', req.query)); }));
+    server.get('/pdfjs/:type', (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+        try {
+            if (req.params.type == 'lib') {
+                const file = fs_1.default.readFileSync('./node_modules/pdfjs-dist/build/pdf.js');
+                res.type('.js');
+                return res.send(file);
+            }
+            else if (req.params.type == 'viewer') {
+                const file = fs_1.default.readFileSync('./node_modules/pdfjs-dist/web/pdf_viewer.js');
+                res.type('.js');
+                return res.send(file);
+            }
+            else if (req.params.type == 'view-css') {
+                const file = fs_1.default.readFileSync('./node_modules/pdfjs-dist/web/pdf_viewer.css');
+                res.type('.css');
+                return res.send(file);
+            }
+            else if (req.params.type == 'worker') {
+                const file = fs_1.default.readFileSync('./node_modules/pdfjs-dist/build/pdf.worker.js');
+                res.type('.js');
+                return res.send(file);
+            }
+            res.sendStatus(404);
+        }
+        catch (e) {
+            console.error(e);
+            res.status(500).send(e.toString());
+        }
+    }));
     /*** WEB CONTENT ***/
     server.get('/api/getNotes', (req, res) => __awaiter(void 0, void 0, void 0, function* () {
         res.send({

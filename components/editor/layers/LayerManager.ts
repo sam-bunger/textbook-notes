@@ -9,6 +9,7 @@ import {
 } from '../NoteStorage';
 import { v4 as uuidv4 } from 'uuid';
 import { listener } from '../../globalEvents/events';
+import { Rect } from '../../types';
 
 export class LayerManager {
   private state: NoteStorage;
@@ -20,6 +21,7 @@ export class LayerManager {
     this.updateLayerHandlers = [];
     this.objectHandler = {};
     listener('PAGE_CHANGE', this.updatePage);
+    this.checkCurrentPage();
   }
 
   /** GLOBAL LISTENERS **/
@@ -59,32 +61,53 @@ export class LayerManager {
 
   /** REFERENCES **/
   public getReferenceIds = () => {
-    this.checkCurrentPage();
     return Object.keys(this.state.pages[this.state.currentPage].references);
   };
 
   public getReferenceById = (id: ReferenceId): Reference => {
-    this.checkCurrentPage();
     return this.state.pages[this.state.currentPage].references[id];
   };
 
-  public createReference = (reference: Reference) => {
-    this.checkCurrentPage();
-    const id = uuidv4();
-    reference.id = id;
-    this.state.pages[this.state.currentPage].references[id] = reference;
+  public deleteReferenceById = (id: ReferenceId) => {
+    delete this.state.pages[this.state.currentPage].references[id];
     this.updateLayers();
   };
 
+  // public createReferenceAndNotes = (reference: Reference) => {
+  //   const refId = this.createReference(reference);
+  // };
+
+  public createReference = (bounds: Rect, text: string): ReferenceId => {
+    const id = uuidv4();
+    const reference = { id, bounds, text, links: [] };
+    this.state.pages[this.state.currentPage].references[id] = reference;
+    this.updateLayers();
+    return id;
+  };
+
   /** NOTES **/
+  public getNoteIds = () => {
+    return Object.keys(this.state.pages[this.state.currentPage].notes);
+  };
+
   public getNotesById = (id: NoteId): Note => {
-    this.checkCurrentPage();
     return this.state.pages[this.state.currentPage].notes[id];
   };
 
   /** LINKS **/
+  public getLinkIds = () => {
+    const links = [];
+    for (const noteLinks in this.state.pages[this.state.currentPage].notes) {
+      Array.prototype.push.apply(links, noteLinks);
+    }
+    return links;
+  };
+
   public getLinkById = (id: LinkId): Link => {
-    this.checkCurrentPage();
     return this.state.links[id];
+  };
+
+  public deleteLinkById = (id: LinkId) => {
+    delete this.state;
   };
 }

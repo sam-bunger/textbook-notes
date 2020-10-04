@@ -1,6 +1,8 @@
 import React from 'react';
 import { LayerManager } from '../LayerManager';
 import { Reference, ReferenceId } from '../../NoteStorage';
+import AddCommentIcon from '@material-ui/icons/AddComment';
+import ClearIcon from '@material-ui/icons/Clear';
 
 interface ReferenceModelProps {
   lm: LayerManager;
@@ -11,6 +13,9 @@ type ReferenceModelState = {
   reference: Reference;
   visible: boolean;
 };
+
+const VPAD = 10;
+const HPAD = 10;
 
 export default class ReferenceModel extends React.Component<
   ReferenceModelProps,
@@ -27,42 +32,46 @@ export default class ReferenceModel extends React.Component<
   }
 
   componentDidMount = () => {
-    this.props.lm.addObjectHandler(this.props.id, (data: any) => {
+    this.props.lm.addObjectHandler(this.state.reference.id, (data: any) => {
       this.setState(data);
     });
   };
 
-  build = () => {
-    const referencePorts = [];
-    if (this.state.reference.ports[0]) referencePorts.push(this.buildPort(0));
-    if (this.state.reference.ports[1]) referencePorts.push(this.buildPort(1));
-    if (!referencePorts.length) referencePorts.push(this.buildPort(0));
-    return referencePorts;
+  handleDelete = () => {
+    this.props.lm.deleteReferenceById(this.state.reference.id);
   };
 
-  buildPort = (type: 0 | 1) => {
-    const bounds = this.state.reference.bounds;
-    const style = type
-      ? {
-          transform: `translate(${bounds.x}px, ${bounds.y}px)`,
-          height: `${bounds.height}px`,
-          width: `${bounds.height * 0.1 + 15}px`
-        }
-      : {
-          transform: `translate(${bounds.x + bounds.width}px, ${bounds.y}px)`,
-          height: `${bounds.height}px`,
-          width: `${bounds.height * 0.01 + 15}px`
-        };
-    const svg = type
-      ? '/static/svg/bracket_left.svg'
-      : '/static/svg/bracket_right.svg';
-    return <img className="reference-model-bracket" style={style} src={svg} />;
-  };
+  handleNewNote = () => {};
 
   render() {
+    const bounds = this.state.reference.bounds;
+    const modelStyle = {
+      transform: `translate(${bounds.x - VPAD}px, ${bounds.y - HPAD}px)`,
+      width: bounds.width + VPAD * 2,
+      height: bounds.height + HPAD * 2
+    };
+    const optionsStyle = {
+      transform: `translate(${bounds.x + bounds.width + VPAD * 2}px, ${
+        bounds.y
+      }px)`
+    };
     return (
       <>
-        <div className="reference-model">{this.build()}</div>
+        <div style={optionsStyle} className="reference-model-options-list">
+          <div
+            onClick={this.handleNewNote}
+            className="highlight-menu reference-model-option"
+          >
+            <AddCommentIcon className="icon-recolor repositon-icon" />
+          </div>
+          <div
+            onClick={this.handleDelete}
+            className="highlight-menu reference-model-option"
+          >
+            <ClearIcon className="icon-recolor repositon-icon" />
+          </div>
+        </div>
+        <div style={modelStyle} className="reference-model"></div>
       </>
     );
   }

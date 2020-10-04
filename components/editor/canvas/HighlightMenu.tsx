@@ -1,7 +1,7 @@
 import React from 'react';
 import { listener, trigger } from '../../globalEvents/events';
 import { Point } from '../../types';
-import AddCommentIcon from '@material-ui/icons/AddComment';
+import BorderColorIcon from '@material-ui/icons/BorderColor';
 
 type CreateReference = (boundingRect: DOMRect, text: string) => void;
 
@@ -94,8 +94,6 @@ export default class HighlightMenu extends React.Component<
           visible: false
         }
       });
-      this.currentRect = null;
-      this.currentText = null;
     }
   };
 
@@ -114,6 +112,7 @@ export default class HighlightMenu extends React.Component<
     return (
       <>
         <div
+          id="highlight-menu"
           className="highlight-menu"
           style={{
             display: this.state.highlightMenu.visible ? 'block' : 'none',
@@ -121,7 +120,7 @@ export default class HighlightMenu extends React.Component<
           }}
           onClick={this.handleClick}
         >
-          <AddCommentIcon className="icon-recolor repositon-icon" />
+          <BorderColorIcon className="icon-recolor repositon-icon" />
         </div>
       </>
     );

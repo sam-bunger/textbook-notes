@@ -42,12 +42,12 @@ export type Note = {
   category: HierarchyId[];
   bounds: Rect;
   text: string;
-  ports: [LinkId | null, LinkId | null];
+  links: LinkId[];
 };
 
 export type Reference = {
   id: ReferenceId;
   text: string;
   bounds: Rect;
-  ports: [LinkId | null, LinkId | null];
+  links: LinkId[];
 };

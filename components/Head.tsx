@@ -16,6 +16,9 @@ const defaultHead = (props: { title: string; description?: string }) => {
         rel="stylesheet"
         href="https://fonts.googleapis.com/css?family=Roboto:300,400,500,700&display=swap"
       />
+      <link rel="stylesheet" href="/pdfjs/view-css" />
+      <script src="/pdfjs/lib"></script>
+      <script src="/pdfjs/viewer"></script>
     </Head>
   );
 };

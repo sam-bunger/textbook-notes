@@ -35,6 +35,32 @@ app.prepare().then(() => {
     res.send(await app.renderToHTML(req, res, '/home', req.query))
   );
 
+  server.get('/pdfjs/:type', async (req: any, res: any) => {
+    try {
+      if (req.params.type == 'lib') {
+        const file = fs.readFileSync('./node_modules/pdfjs-dist/build/pdf.js');
+        res.type('.js');
+        return res.send(file);
+      } else if (req.params.type == 'viewer') {
+        const file = fs.readFileSync('./node_modules/pdfjs-dist/web/pdf_viewer.js');
+        res.type('.js');
+        return res.send(file);
+      } else if (req.params.type == 'view-css') {
+        const file = fs.readFileSync('./node_modules/pdfjs-dist/web/pdf_viewer.css');
+        res.type('.css');
+        return res.send(file);
+      } else if (req.params.type == 'worker') {
+        const file = fs.readFileSync('./node_modules/pdfjs-dist/build/pdf.worker.js');
+        res.type('.js');
+        return res.send(file);
+      }
+      res.sendStatus(404);
+    } catch (e) {
+      console.error(e);
+      res.status(500).send(e.toString());
+    }
+  });
+
   /*** WEB CONTENT ***/
 
   server.get('/api/getNotes', async (req: any, res: any) => {

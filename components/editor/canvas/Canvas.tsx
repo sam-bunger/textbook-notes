@@ -9,7 +9,9 @@ import { convertRectCoordinates } from '../utils';
 import HighlightMenu from './HighlightMenu';
 import { NoteStorage } from '../NoteStorage';
 import { LayerManager } from '../layers/LayerManager';
+import NoteLayer from '../layers/notes/NoteLayer';
 import ReferenceLayer from '../layers/references/ReferenceLayer';
+import PDFRenderer from '../pdfRenderer/PDFRenderer';
 
 interface CanvasProps {}
 
@@ -22,14 +24,15 @@ interface CanvasState {
   spacePressed: boolean;
   mouseIn: boolean;
   scale: number;
+  scaleFinal: number;
   pageWidth: number | null;
   file: string;
   lm: LayerManager | null;
   testRect: Rect | null;
 }
 
-const INITIAL_RENDER_WIDTH = 3000;
-const INTIAL_PAGE_SCALE = 0.5;
+const INITIAL_RENDER_WIDTH = 1300;
+const INTIAL_PAGE_SCALE = 1;
 
 class Canvas extends React.Component<CanvasProps, CanvasState> {
   state: CanvasState;
@@ -50,6 +53,7 @@ class Canvas extends React.Component<CanvasProps, CanvasState> {
       dragging: false,
       spacePressed: false,
       scale: 1,
+      scaleFinal: 1,
       pageWidth: null,
       file: null,
       mouseIn: true,
@@ -110,6 +114,7 @@ class Canvas extends React.Component<CanvasProps, CanvasState> {
   };
 
   loadNotes = (notesData: NoteStorage) => {
+    console.log('UPDATE: ', notesData.document);
     this.setState({ file: notesData.document });
     this.setState({ lm: new LayerManager(notesData) });
   };
@@ -156,7 +161,8 @@ class Canvas extends React.Component<CanvasProps, CanvasState> {
       trigger('CANVAS_LOCKED', { locked: false });
       this.setState({
         spacePressed: false,
-        dragging: false
+        dragging: false,
+        scaleFinal: this.state.scale
       });
     }
   };
@@ -173,12 +179,10 @@ class Canvas extends React.Component<CanvasProps, CanvasState> {
       });
     } else {
       const newScale: number = this.state.scale + e.wheelDelta / 1000;
-      if (newScale < this.scaleBounds.low || newScale > this.scaleBounds.high)
-        return;
+      if (newScale < this.scaleBounds.low || newScale > this.scaleBounds.high) return;
 
       //Percent change
-      const percentChange: number =
-        (newScale - this.state.scale) / this.state.scale;
+      const percentChange: number = (newScale - this.state.scale) / this.state.scale;
 
       //Get difference in mouse and document positions
 
@@ -243,40 +247,8 @@ class Canvas extends React.Component<CanvasProps, CanvasState> {
       this.state.pos,
       this.state.scale
     );
-    this.state.lm.createReference({
-      id: 'replace_this',
-      bounds: convertedRect,
-      text,
-      ports: [null, null]
-    });
+    this.state.lm.createReference(convertedRect, text);
     this.setState({ testRect: convertedRect });
-  };
-
-  onDocumentLoadSuccess = ({ numPages }) => {
-    this.setState({ totalPages: numPages });
-    trigger('TOTAL_PAGES', { totalPages: numPages });
-    const textLayers = document.querySelectorAll(
-      '.react-pdf__Page__textContent'
-    );
-    textLayers.forEach((layer) => {
-      const { style } = layer;
-      style.top = '0';
-      style.left = '0';
-      style.transform = '';
-      style.display = 'none';
-    });
-  };
-
-  renderPage = () => {
-    this.pageRef = React.createRef();
-    return (
-      <Page
-        ref={this.pageRef}
-        className="document-page"
-        pageNumber={this.state.currentPage}
-        width={INITIAL_RENDER_WIDTH}
-      />
-    );
   };
 
   render() {
@@ -290,6 +262,16 @@ class Canvas extends React.Component<CanvasProps, CanvasState> {
       transform: `translate(${this.state.pos.x}px, ${this.state.pos.y}px) scale(${this.state.scale})`
     };
 
+    const positionWithRelativeScale = {
+      transform: `translate(${this.state.pos.x}px, ${this.state.pos.y}px) scale(${
+        1 + (this.state.scale - this.state.scaleFinal)
+      })`
+    };
+
+    const positionWithoutScale = {
+      transform: `translate(${this.state.pos.x}px, ${this.state.pos.y}px)`
+    };
+
     const testRectStyle = this.state.testRect
       ? {
           transform: `translate(${this.state.testRect.x}px, ${this.state.testRect.y}px)`,
@@ -300,7 +282,12 @@ class Canvas extends React.Component<CanvasProps, CanvasState> {
           display: 'none'
         };
 
-    const layers = this.state.lm ? <ReferenceLayer lm={this.state.lm} /> : null;
+    const layers = this.state.lm ? (
+      <>
+        <ReferenceLayer lm={this.state.lm} />
+        <NoteLayer lm={this.state.lm} />
+      </>
+    ) : null;
 
     return (
       <>
@@ -317,14 +304,17 @@ class Canvas extends React.Component<CanvasProps, CanvasState> {
             {layers}
             {/* <div className="rect" style={testRectStyle} /> */}
           </div>
-          <div className="document-layer" style={positionWithScale}>
-            <Document
-              file={this.state.file}
-              onLoadSuccess={this.onDocumentLoadSuccess}
-              loading={<Loader></Loader>}
-            >
-              {this.renderPage()}
-            </Document>
+          <div
+            className="document-layer"
+            style={
+              this.state.spacePressed ? positionWithRelativeScale : positionWithoutScale
+            }
+          >
+            <PDFRenderer
+              pdfUrl={this.state.file}
+              pageNumber={this.state.currentPage}
+              scale={this.state.scaleFinal}
+            />
           </div>
         </div>
       </>

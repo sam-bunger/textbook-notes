@@ -1,11 +1,15 @@
 import React from 'react';
-import { listener, trigger } from '../../../globalEvents/events';
+import { LayerManager } from '../LayerManager';
+import { NoteId } from '../../NoteStorage';
+import Note from './Note';
 
-interface NoteLayerProps {}
-
-interface NoteLayerState {
-  locked: boolean;
+interface NoteLayerProps {
+  lm: LayerManager;
 }
+
+type NoteLayerState = {
+  notes: NoteId[];
+};
 
 export default class NoteLayer extends React.Component<
   NoteLayerProps,
@@ -16,19 +20,31 @@ export default class NoteLayer extends React.Component<
   constructor(props: NoteLayerProps) {
     super(props);
     this.state = {
-      locked: false
+      notes: props.lm.getNoteIds()
     };
   }
 
   componentDidMount = () => {
-    listener('CANVAS_LOCKED', this.updateLocked);
+    this.props.lm.addLayerUpdate(() => {
+      this.setState({
+        notes: this.props.lm.getNoteIds()
+      });
+    });
   };
 
-  updateLocked = ({ locked }) => {
-    this.setState({ locked });
+  createNotes = () => {
+    const components = [];
+    for (const id of this.state.notes) {
+      components.push(<Note lm={this.props.lm} key={id} id={id} />);
+    }
+    return components;
   };
 
   render() {
-    return <></>;
+    return (
+      <>
+        <div className="note-layer">{this.createNotes()}</div>
+      </>
+    );
   }
 }
