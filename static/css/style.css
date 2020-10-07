@@ -288,3 +288,9 @@ p {
   background-color: white;
   border-radius: 3px;
 }
+
+/*********** LINK MODEL **********/
+.link-layer {
+  overflow: visible;
+  pointer-events: none;
+}

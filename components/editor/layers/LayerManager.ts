@@ -9,7 +9,7 @@ import {
 } from '../NoteStorage';
 import { v4 as uuidv4 } from 'uuid';
 import { listener } from '../../globalEvents/events';
-import { Rect } from '../../types';
+import { Rect, Point } from '../../types';
 
 export class LayerManager {
   private state: NoteStorage;
@@ -73,9 +73,16 @@ export class LayerManager {
     this.updateLayers();
   };
 
-  // public createReferenceAndNotes = (reference: Reference) => {
-  //   const refId = this.createReference(reference);
-  // };
+  public createNoteFromReference = (refId: ReferenceId) => {
+    const ref = this.state.pages[this.state.currentPage].references[refId];
+    const notePos: Point = {
+      x: ref.bounds.x + ref.bounds.width + 200,
+      y: ref.bounds.y - 100
+    };
+    const noteId = this.createNewNote(notePos, '');
+    this.linkNoteAndReference(noteId, refId);
+    this.updateLayers();
+  };
 
   public createReference = (bounds: Rect, text: string): ReferenceId => {
     const id = uuidv4();
@@ -94,6 +101,24 @@ export class LayerManager {
     return this.state.pages[this.state.currentPage].notes[id];
   };
 
+  public createNewNote = (pos: Point, text: string) => {
+    const id = uuidv4();
+    const newNote: Note = {
+      id,
+      bounds: {
+        x: pos.x,
+        y: pos.y,
+        width: 500,
+        height: 200
+      },
+      text,
+      category: [],
+      links: []
+    };
+    this.state.pages[this.state.currentPage].notes[id] = newNote;
+    return id;
+  };
+
   /** LINKS **/
   public getLinkIds = () => {
     const links = [];
@@ -109,5 +134,23 @@ export class LayerManager {
 
   public deleteLinkById = (id: LinkId) => {
     delete this.state;
+  };
+
+  public linkNoteAndReference = (noteId: NoteId, refId: ReferenceId) => {
+    const id = uuidv4();
+    const link: Link = {
+      id,
+      portA: {
+        type: 'note',
+        id: noteId
+      },
+      portB: {
+        type: 'reference',
+        id: refId
+      }
+    };
+    this.state.links[id] = link;
+    this.state.pages[this.state.currentPage].notes[noteId].links.push(id);
+    this.state.pages[this.state.currentPage].references[refId].links.push(id);
   };
 }

@@ -12,10 +12,7 @@ type LinkModelState = {
   visible: boolean;
 };
 
-export default class LinkModel extends React.Component<
-  LinkModelProps,
-  LinkModelState
-> {
+export default class LinkModel extends React.Component<LinkModelProps, LinkModelState> {
   state: LinkModelState;
 
   constructor(props: LinkModelProps) {
@@ -35,6 +32,10 @@ export default class LinkModel extends React.Component<
   build = () => {};
 
   render() {
-    return <></>;
+    return (
+      <>
+        <path d="M 175 200 l 150 0" stroke="green" strokeWidth="3" fill="none" />
+      </>
+    );
   }
 }

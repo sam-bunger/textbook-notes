@@ -1,7 +1,5 @@
 import React from 'react';
 import _ from 'lodash';
-import { Document, Page, pdfjs } from 'react-pdf';
-pdfjs.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.js`;
 import { Point, Bound, Rect } from '../../types';
 import { Loader } from './Loader';
 import { listener, trigger } from '../../globalEvents/events';
@@ -12,6 +10,7 @@ import { LayerManager } from '../layers/LayerManager';
 import NoteLayer from '../layers/notes/NoteLayer';
 import ReferenceLayer from '../layers/references/ReferenceLayer';
 import PDFRenderer from '../pdfRenderer/PDFRenderer';
+import LinkLayer from '../layers/links/LinkLayer';
 
 interface CanvasProps {}
 
@@ -127,7 +126,7 @@ class Canvas extends React.Component<CanvasProps, CanvasState> {
 
     this.scaleBounds = {
       high: newScale + newScale * 0.75,
-      low: newScale - newScale * 0.5
+      low: newScale - newScale * 0.9
     };
 
     this.setState({
@@ -286,6 +285,11 @@ class Canvas extends React.Component<CanvasProps, CanvasState> {
       <>
         <ReferenceLayer lm={this.state.lm} />
         <NoteLayer lm={this.state.lm} />
+        <LinkLayer
+          lm={this.state.lm}
+          width={this.canvasRef.current.offsetWidth}
+          height={this.canvasRef.current.offsetHeight}
+        />
       </>
     ) : null;
 
@@ -304,16 +308,11 @@ class Canvas extends React.Component<CanvasProps, CanvasState> {
             {layers}
             {/* <div className="rect" style={testRectStyle} /> */}
           </div>
-          <div
-            className="document-layer"
-            style={
-              this.state.spacePressed ? positionWithRelativeScale : positionWithoutScale
-            }
-          >
+          <div className="document-layer" style={positionWithoutScale}>
             <PDFRenderer
               pdfUrl={this.state.file}
               pageNumber={this.state.currentPage}
-              scale={this.state.scaleFinal}
+              scale={this.state.scale}
             />
           </div>
         </div>

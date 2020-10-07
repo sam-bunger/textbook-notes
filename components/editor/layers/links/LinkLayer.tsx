@@ -5,16 +5,15 @@ import Link from './Link';
 
 interface LinkLayerProps {
   lm: LayerManager;
+  width: number;
+  height: number;
 }
 
 type LinkLayerState = {
   links: LinkId[];
 };
 
-export default class LinkLayer extends React.Component<
-  LinkLayerProps,
-  LinkLayerState
-> {
+export default class LinkLayer extends React.Component<LinkLayerProps, LinkLayerState> {
   state: LinkLayerState;
 
   constructor(props: LinkLayerProps) {
@@ -43,7 +42,9 @@ export default class LinkLayer extends React.Component<
   render() {
     return (
       <>
-        <div className="link-layer">{this.createLinks()}</div>
+        <svg className="link-layer" width={this.props.width} height={this.props.height}>
+          {this.createLinks()}
+        </svg>
       </>
     );
   }

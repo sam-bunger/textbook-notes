@@ -14,8 +14,8 @@ type ReferenceModelState = {
   visible: boolean;
 };
 
-const VPAD = 10;
-const HPAD = 10;
+const VPAD = 5;
+const HPAD = 5;
 
 export default class ReferenceModel extends React.Component<
   ReferenceModelProps,
@@ -41,7 +41,9 @@ export default class ReferenceModel extends React.Component<
     this.props.lm.deleteReferenceById(this.state.reference.id);
   };
 
-  handleNewNote = () => {};
+  handleNewNote = () => {
+    this.props.lm.createNoteFromReference(this.state.reference.id);
+  };
 
   render() {
     const bounds = this.state.reference.bounds;
@@ -51,9 +53,8 @@ export default class ReferenceModel extends React.Component<
       height: bounds.height + HPAD * 2
     };
     const optionsStyle = {
-      transform: `translate(${bounds.x + bounds.width + VPAD * 2}px, ${
-        bounds.y
-      }px)`
+      display: this.state.reference.links.length ? 'none' : undefined,
+      transform: `translate(${bounds.x + bounds.width + VPAD * 2}px, ${bounds.y}px)`
     };
     return (
       <>

@@ -13,6 +13,8 @@ type PDFRendererState = {
   pageRendering: boolean;
 };
 
+const SCALE_FACTOR = 2;
+
 export default class PDFRenderer extends React.Component<
   PDFRendererProps,
   PDFRendererState
@@ -20,6 +22,7 @@ export default class PDFRenderer extends React.Component<
   state: PDFRendererState;
   pageRef: React.RefObject<any>;
   eventBus: any;
+  currentPage: any;
 
   constructor(props: PDFRendererProps) {
     super(props);
@@ -30,6 +33,7 @@ export default class PDFRenderer extends React.Component<
     };
     this.pageRef = React.createRef();
     this.eventBus = null;
+    this.currentPage = null;
   }
 
   componentDidMount = () => {
@@ -45,8 +49,11 @@ export default class PDFRenderer extends React.Component<
     if (this.props.pageNumber !== prevProps.pageNumber) {
       this.updatePageNumber(this.props.pageNumber);
     }
-    if (this.props.scale !== prevProps.scale) {
-      this.renderPage(this.props.pageNumber);
+    if (this.props.scale !== prevProps.scale && this.currentPage) {
+      this.currentPage.update(
+        (Math.round((this.props.scale + Number.EPSILON) * 100) / 100) * SCALE_FACTOR
+      );
+      this.currentPage.draw();
     }
   };
 
@@ -84,11 +91,10 @@ export default class PDFRenderer extends React.Component<
 
   renderPage = (pageNum: number) => {
     if (!pageNum || !this.eventBus || !this.state.pdf || pageNum < 1) return;
-    const SCALE = this.props.scale;
+    const SCALE = this.props.scale * SCALE_FACTOR;
     const pdfjsViewer = window.pdfjsViewer;
 
     this.pageRef.current.innerHTML = '';
-    // this.render();
 
     this.state.pdf.getPage(pageNum).then((page) => {
       const pdfPageView = new pdfjsViewer.PDFPageView({
@@ -99,8 +105,6 @@ export default class PDFRenderer extends React.Component<
         eventBus: this.eventBus,
         textLayerFactory: new pdfjsViewer.DefaultTextLayerFactory()
       });
-
-      console.log('PDF PAGE VIEW: ', pdfPageView);
 
       pdfPageView.setPdfPage(page);
       pdfPageView.draw();
@@ -116,6 +120,7 @@ export default class PDFRenderer extends React.Component<
           }
         );
       } else {
+        this.currentPage = pdfPageView;
         this.setState({
           pageRendering: false
         });
