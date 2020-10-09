@@ -287,10 +287,18 @@ p {
   transform-origin: top left;
   background-color: white;
   border-radius: 3px;
+  border: 1px solid #e1e1e1;
 }
 
 /*********** LINK MODEL **********/
 .link-layer {
+  display: block;
   overflow: visible;
   pointer-events: none;
+}
+
+.link-model {
+  stroke: url(#grad);
+  stroke-width: 3px;
+  fill: none;
 }

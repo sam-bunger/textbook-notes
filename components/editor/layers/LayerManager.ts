@@ -28,6 +28,7 @@ export class LayerManager {
 
   private updatePage = ({ page }) => {
     this.state.currentPage = page;
+    this.objectHandler = {};
     this.checkCurrentPage();
     this.updateLayers();
   };
@@ -48,6 +49,10 @@ export class LayerManager {
 
   public updateLayers = () => {
     this.updateLayerHandlers.forEach((fn) => fn());
+  };
+
+  public updateLinkLayer = () => {
+    this.updateLayerHandlers[2]();
   };
 
   /** OBJECT UPDATER **/
@@ -121,9 +126,11 @@ export class LayerManager {
 
   /** LINKS **/
   public getLinkIds = () => {
-    const links = [];
-    for (const noteLinks in this.state.pages[this.state.currentPage].notes) {
-      Array.prototype.push.apply(links, noteLinks);
+    let links = [];
+    for (const noteLinks of Object.values(
+      this.state.pages[this.state.currentPage].notes
+    )) {
+      links = [...links, ...noteLinks.links];
     }
     return links;
   };

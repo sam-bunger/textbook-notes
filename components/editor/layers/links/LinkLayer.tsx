@@ -43,6 +43,12 @@ export default class LinkLayer extends React.Component<LinkLayerProps, LinkLayer
     return (
       <>
         <svg className="link-layer" width={this.props.width} height={this.props.height}>
+          <defs>
+            <linearGradient id="grad">
+              <stop stopColor="#ffdc00" stopOpacity="0.3" />
+              <stop offset="100%" stopColor="#e1e1e1" />
+            </linearGradient>
+          </defs>
           {this.createLinks()}
         </svg>
       </>
