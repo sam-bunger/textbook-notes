@@ -18,6 +18,7 @@ interface CanvasState {
   currentPage: number;
   totalPages: number;
   pos: Point;
+  scaleOffset: Point;
   rel: Point;
   dragging: boolean;
   spacePressed: boolean;
@@ -48,6 +49,7 @@ class Canvas extends React.Component<CanvasProps, CanvasState> {
       currentPage: 1,
       totalPages: 0,
       pos: { x: 0, y: 0 },
+      scaleOffset: { x: 0, y: 0},
       rel: { x: 0, y: 0 },
       dragging: false,
       spacePressed: false,
@@ -125,8 +127,8 @@ class Canvas extends React.Component<CanvasProps, CanvasState> {
     const newScale = (width * INTIAL_PAGE_SCALE) / INITIAL_RENDER_WIDTH;
 
     this.scaleBounds = {
-      high: newScale + newScale * 0.75,
-      low: newScale - newScale * 0.9
+      high: newScale + newScale * 0.8,
+      low: newScale - newScale * 0.6       
     };
 
     this.setState({
@@ -177,7 +179,7 @@ class Canvas extends React.Component<CanvasProps, CanvasState> {
         }
       });
     } else {
-      const newScale: number = this.state.scale + e.wheelDelta / 1000;
+      const newScale: number = this.state.scale + (e.wheelDelta / 1000);
       if (newScale < this.scaleBounds.low || newScale > this.scaleBounds.high) return;
 
       //Percent change
@@ -185,9 +187,12 @@ class Canvas extends React.Component<CanvasProps, CanvasState> {
 
       //Get difference in mouse and document positions
 
+      console.log('MOUSE Y: ', this.state.pos.y);
+      console.log('window: ', window.innerHeight);
+
       const diffPos: Point = {
         x: (this.state.pos.x - this.mousePos.x) * percentChange,
-        y: (this.state.pos.y - this.mousePos.y) * percentChange
+        y: (this.state.pos.y - 400) * percentChange
       };
 
       this.setState({
@@ -255,20 +260,20 @@ class Canvas extends React.Component<CanvasProps, CanvasState> {
       ? this.state.dragging
         ? 'grabbing'
         : 'grab'
-      : 'context-menu';
+      : 'default';
 
     const positionWithScale = {
-      transform: `translate(${this.state.pos.x}px, ${this.state.pos.y}px) scale(${this.state.scale})`
+      transform: `translate(${this.state.pos.x + this.state.scaleOffset.y}px, ${this.state.pos.y + this.state.scaleOffset.y}px) scale(${this.state.scale})`
     };
 
     const positionWithRelativeScale = {
-      transform: `translate(${this.state.pos.x}px, ${this.state.pos.y}px) scale(${
+      transform: `translate(${this.state.pos.x + this.state.scaleOffset.x}px, ${this.state.pos.y + this.state.scaleOffset.y}px) scale(${
         1 + (this.state.scale - this.state.scaleFinal)
       })`
     };
 
     const positionWithoutScale = {
-      transform: `translate(${this.state.pos.x}px, ${this.state.pos.y}px)`
+      transform: `translate(${this.state.pos.x + this.state.scaleOffset.x}px, ${this.state.pos.y + this.state.scaleOffset.y}px)`
     };
 
     const testRectStyle = this.state.testRect
@@ -305,7 +310,7 @@ class Canvas extends React.Component<CanvasProps, CanvasState> {
         >
           <HighlightMenu createReference={this.createReference} />
           <div className="notes-layer" style={positionWithScale}>
-            {layers}
+            {/* {layers} */}
             {/* <div className="rect" style={testRectStyle} /> */}
           </div>
           <div className="document-layer" style={positionWithoutScale}>
@@ -313,6 +318,7 @@ class Canvas extends React.Component<CanvasProps, CanvasState> {
               pdfUrl={this.state.file}
               pageNumber={this.state.currentPage}
               scale={this.state.scale}
+              position={this.state.pos.y}
             />
           </div>
         </div>

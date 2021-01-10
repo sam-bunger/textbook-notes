@@ -32,7 +32,7 @@ app.prepare().then(() => {
     server.get('/static/*', (req, res) => __awaiter(void 0, void 0, void 0, function* () { return handle(req, res); }));
     server.get('/_next/*', (req, res) => __awaiter(void 0, void 0, void 0, function* () { return handle(req, res); }));
     /*** WEB PAGES ***/
-    server.get('/', (req, res) => __awaiter(void 0, void 0, void 0, function* () { return res.send(yield app.renderToHTML(req, res, '/home', req.query)); }));
+    server.get('/', (req, res) => __awaiter(void 0, void 0, void 0, function* () { return res.send(yield app.renderToHTML(req, res, '/landing', req.query)); }));
     server.get('/editor', (req, res) => __awaiter(void 0, void 0, void 0, function* () { return res.send(yield app.renderToHTML(req, res, '/home', req.query)); }));
     server.get('/pdfjs/:type', (req, res) => __awaiter(void 0, void 0, void 0, function* () {
         try {

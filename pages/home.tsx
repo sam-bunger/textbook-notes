@@ -5,7 +5,7 @@ import Nav from '../components/nav/Nav';
 import { listener, trigger } from '../components/globalEvents/events';
 import { getNotes } from '../components/networkAPI/network';
 import EditorNav from '../components/editor/editorNav/editorNav';
-import { NotesStorage } from '../components/editor/NoteStorage';
+import { NoteStorage } from '../components/editor/NoteStorage';
 
 interface HomeProps {}
 
@@ -26,7 +26,7 @@ export default class Home extends React.Component<HomeProps, HomeState> {
   }
 
   componentDidMount = () => {
-    getNotes((err: string, data: NotesStorage) => {
+    getNotes((err: string, data: NoteStorage) => {
       if (err) {
         console.error(err);
         return;

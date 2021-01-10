@@ -28,7 +28,7 @@ app.prepare().then(() => {
   /*** WEB PAGES ***/
 
   server.get('/', async (req: any, res: any) =>
-    res.send(await app.renderToHTML(req, res, '/home', req.query))
+    res.send(await app.renderToHTML(req, res, '/landing', req.query))
   );
 
   server.get('/editor', async (req: any, res: any) =>
