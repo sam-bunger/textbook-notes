@@ -11,13 +11,13 @@ import NoteLayer from '../layers/notes/NoteLayer';
 import ReferenceLayer from '../layers/references/ReferenceLayer';
 import PDFRenderer from '../pdfRenderer/PDFRenderer';
 import LinkLayer from '../layers/links/LinkLayer';
+import { EditorContext, EditorState } from '../EditorContext';
 
 interface CanvasProps {}
 
 interface CanvasState {
   currentPage: number;
   totalPages: number;
-  pos: Point;
   scaleOffset: Point;
   rel: Point;
   dragging: boolean;
@@ -48,7 +48,6 @@ class Canvas extends React.Component<CanvasProps, CanvasState> {
     this.state = {
       currentPage: 1,
       totalPages: 0,
-      pos: { x: 0, y: 0 },
       scaleOffset: { x: 0, y: 0},
       rel: { x: 0, y: 0 },
       dragging: false,
@@ -128,16 +127,18 @@ class Canvas extends React.Component<CanvasProps, CanvasState> {
 
     this.scaleBounds = {
       high: newScale + newScale * 0.8,
-      low: newScale - newScale * 0.6       
+      low: newScale - newScale
     };
 
     this.setState({
-      scale: newScale,
+      scale: newScale
+    });
+    this.context.setContext({
       pos: {
         x: width / 2 - (INITIAL_RENDER_WIDTH * newScale) / 2,
-        y: this.state.pos.y
+        y: this.context.pos.y
       }
-    });
+    });       
   };
 
   /* Page Handlers */
@@ -171,8 +172,8 @@ class Canvas extends React.Component<CanvasProps, CanvasState> {
   scrollHandler = (e) => {
     if (!this.state.mouseIn) return;
     if (!this.state.spacePressed) {
-      const pos = this.state.pos;
-      this.setState({
+      const pos = this.context.pos;
+      this.context.setContext({
         pos: {
           x: pos.x + e.wheelDeltaX,
           y: pos.y + e.wheelDeltaY
@@ -187,19 +188,21 @@ class Canvas extends React.Component<CanvasProps, CanvasState> {
 
       //Get difference in mouse and document positions
 
-      console.log('MOUSE Y: ', this.state.pos.y);
+      console.log('MOUSE Y: ', this.context.pos.y);
       console.log('window: ', window.innerHeight);
 
       const diffPos: Point = {
-        x: (this.state.pos.x - this.mousePos.x) * percentChange,
-        y: (this.state.pos.y - 400) * percentChange
+        x: (this.context.pos.x - this.mousePos.x) * percentChange,
+        y: (this.context.pos.y - 400) * percentChange
       };
 
       this.setState({
-        scale: newScale,
+        scale: newScale
+      });
+      this.context.setContext({
         pos: {
-          x: this.state.pos.x + diffPos.x,
-          y: this.state.pos.y + diffPos.y
+          x: this.context.pos.x + diffPos.x,
+          y: this.context.pos.y + diffPos.y
         }
       });
     }
@@ -210,7 +213,7 @@ class Canvas extends React.Component<CanvasProps, CanvasState> {
     if (e.button !== 0) return;
     if (!this.state.spacePressed) return;
 
-    const pos = this.state.pos;
+    const pos = this.context.pos;
 
     this.setState({
       dragging: true,
@@ -235,7 +238,7 @@ class Canvas extends React.Component<CanvasProps, CanvasState> {
     this.mousePos.x = e.pageX;
     this.mousePos.y = e.pageY;
     if (!this.state.dragging) return;
-    this.setState({
+    this.context.setContext({
       pos: {
         x: e.pageX - this.state.rel.x,
         y: e.pageY - this.state.rel.y
@@ -248,7 +251,7 @@ class Canvas extends React.Component<CanvasProps, CanvasState> {
   createReference = (boundingRect: Rect, text: string) => {
     const convertedRect: Rect = convertRectCoordinates(
       boundingRect,
-      this.state.pos,
+      this.context.pos,
       this.state.scale
     );
     this.state.lm.createReference(convertedRect, text);
@@ -263,17 +266,17 @@ class Canvas extends React.Component<CanvasProps, CanvasState> {
       : 'default';
 
     const positionWithScale = {
-      transform: `translate(${this.state.pos.x + this.state.scaleOffset.y}px, ${this.state.pos.y + this.state.scaleOffset.y}px) scale(${this.state.scale})`
+      transform: `translate(${this.context.pos.x}px, ${this.context.pos.y}px) scale(${this.state.scale})`
     };
 
     const positionWithRelativeScale = {
-      transform: `translate(${this.state.pos.x + this.state.scaleOffset.x}px, ${this.state.pos.y + this.state.scaleOffset.y}px) scale(${
+      transform: `translate(${this.context.pos.x}px, ${this.context.pos.y}px) scale(${
         1 + (this.state.scale - this.state.scaleFinal)
       })`
     };
 
     const positionWithoutScale = {
-      transform: `translate(${this.state.pos.x + this.state.scaleOffset.x}px, ${this.state.pos.y + this.state.scaleOffset.y}px)`
+      transform: `translate(${this.context.pos.x}px, ${this.context.pos.y}px)`
     };
 
     const testRectStyle = this.state.testRect
@@ -316,9 +319,9 @@ class Canvas extends React.Component<CanvasProps, CanvasState> {
           <div className="document-layer" style={positionWithoutScale}>
             <PDFRenderer
               pdfUrl={this.state.file}
-              pageNumber={this.state.currentPage}
+              pageNumber={this.context.currentPage}
               scale={this.state.scale}
-              position={this.state.pos.y}
+              position={this.context.pos.y}
             />
           </div>
         </div>
@@ -326,5 +329,6 @@ class Canvas extends React.Component<CanvasProps, CanvasState> {
     );
   }
 }
+Canvas.contextType = EditorContext;
 
 export default Canvas;

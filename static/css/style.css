@@ -47,7 +47,8 @@ p {
 .page-wrapper {
   position: relative;
   background-color: white;
-  margin-bottom: 15px;
+  margin-left: auto;
+  margin-right: auto;
 }
 
 /******* NAV BAR **********/

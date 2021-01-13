@@ -33,7 +33,7 @@ app.prepare().then(() => {
     server.get('/_next/*', (req, res) => __awaiter(void 0, void 0, void 0, function* () { return handle(req, res); }));
     /*** WEB PAGES ***/
     server.get('/', (req, res) => __awaiter(void 0, void 0, void 0, function* () { return res.send(yield app.renderToHTML(req, res, '/landing', req.query)); }));
-    server.get('/editor', (req, res) => __awaiter(void 0, void 0, void 0, function* () { return res.send(yield app.renderToHTML(req, res, '/home', req.query)); }));
+    server.get('/editor', (req, res) => __awaiter(void 0, void 0, void 0, function* () { return res.send(yield app.renderToHTML(req, res, '/editor', req.query)); }));
     server.get('/pdfjs/:type', (req, res) => __awaiter(void 0, void 0, void 0, function* () {
         try {
             if (req.params.type == 'lib') {
@@ -66,7 +66,7 @@ app.prepare().then(() => {
     /*** WEB CONTENT ***/
     server.get('/api/getNotes', (req, res) => __awaiter(void 0, void 0, void 0, function* () {
         res.send({
-            document: 'http://localhost/static/text2.pdf',
+            document: 'http://localhost/static/text3.pdf',
             currentPage: 1,
             projectName: 'Operating Systems',
             categories: [],

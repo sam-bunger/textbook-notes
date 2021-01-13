@@ -4,19 +4,15 @@ import IndeterminateCheckBoxIcon from '@material-ui/icons/IndeterminateCheckBox'
 import AddBoxIcon from '@material-ui/icons/AddBox';
 import { TextField } from '@material-ui/core';
 import { NoteStorage } from '../NoteStorage';
+import { EditorContext } from '../EditorContext';
 
 interface NavigateProps {
   retracted: boolean;
 }
 
-interface NavigateState {
-  retracted: boolean;
-  currentPage: number;
-  totalPages: number;
-  file: string;
-}
+interface NavigateState {}
 
-export default class Navigate extends React.Component<
+class Navigate extends React.Component<
   NavigateProps,
   NavigateState
 > {
@@ -24,51 +20,27 @@ export default class Navigate extends React.Component<
 
   constructor(props: NavigateProps) {
     super(props);
-    this.state = {
-      retracted: props.retracted,
-      currentPage: 0,
-      totalPages: 0,
-      file: null
-    };
+    this.state = {};
   }
 
-  componentDidMount = () => {
-    listener('PAGE_CHANGE', this.updatePage);
-    listener('TOTAL_PAGES', this.updatePageTotal);
-    listener('LOAD_NOTES', this.loadNotes);
-    listener('RETRACT_NAV', this.updateRetracted);
-  };
-
-  updatePageTotal = ({ totalPages }) => {
-    this.setState({ totalPages: totalPages });
-  };
-
-  updatePage = ({ page }) => {
-    this.setState({ currentPage: page });
-  };
-
-  loadNotes = (data: NoteStorage) => {
-    this.setState({ file: data.document });
-  };
-
-  updateRetracted = ({ retracted }) => {
-    this.setState({ retracted });
-  };
+  componentDidMount = () => {};
 
   pageHandler = (page) => {
-    if (page < 1 || page > this.state.totalPages) return;
-    trigger('PAGE_CHANGE', { page });
+    if (page < 1 || page > this.context.totalPages) return;
+    this.context.setContext({
+      currentPage: page
+    });
   };
 
   render() {
-    const content = this.state.retracted ? (
+    const content = this.context.navRetracted ? (
       <div />
     ) : (
       <div className="navigate">
         <div className="navigate-pager">
           <div
             className="navigate-pager-item"
-            onClick={(e) => this.pageHandler(this.state.currentPage - 1)}
+            onClick={(e) => this.pageHandler(this.context.currentPage - 1)}
           >
             <IndeterminateCheckBoxIcon className="icon-recolor icon-larger" />
           </div>
@@ -76,7 +48,7 @@ export default class Navigate extends React.Component<
             <TextField
               className="thin-textfield"
               onChange={(e) => this.pageHandler(parseInt(e.target.value))}
-              value={this.state.currentPage}
+              value={this.context.currentPage + 1}
               type={'number'}
             />
           </div>
@@ -95,13 +67,13 @@ export default class Navigate extends React.Component<
             <TextField
               disabled={true}
               className="thin-textfield"
-              value={this.state.totalPages}
+              value={this.context.totalPages}
               type={'number'}
             />
           </div>
           <div
             className="navigate-pager-item"
-            onClick={(e) => this.pageHandler(this.state.currentPage + 1)}
+            onClick={(e) => this.pageHandler(this.context.currentPage + 1)}
           >
             <AddBoxIcon className="icon-recolor" />
           </div>
@@ -111,3 +83,7 @@ export default class Navigate extends React.Component<
     return <>{content}</>;
   }
 }
+
+Navigate.contextType = EditorContext;
+
+export default Navigate;

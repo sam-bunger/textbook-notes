@@ -1,10 +1,12 @@
 import { AssignmentReturnOutlined } from '@material-ui/icons';
 import React from 'react';
 import { listener, trigger } from '../../globalEvents/events';
+import { EditorContext } from '../EditorContext';
 
-const DEFAULT_HEIGHT = 1600;
+const DEFAULT_HEIGHT = 1400;
 const DEFAULT_WIDTH = 800;
 const MAX_LOADED = 10;
+const PAGE_SPACE = 16;
 
 type ScanDirection = 'NONE' | 'UP' | 'DOWN';
 
@@ -46,12 +48,11 @@ type PDFRendererState = {
   textContent?: any;
   pages: Page[];
   defaultViewport: Viewport;
-  currentPage: number;
 };
 
 const SCALE_FACTOR = 2;
 
-export default class PDFRenderer extends React.Component<
+class PDFRenderer extends React.Component<
   PDFRendererProps,
   PDFRendererState
 > {
@@ -64,7 +65,6 @@ export default class PDFRenderer extends React.Component<
   renderedList: number[];
   loadedQueue: number[];
   renderQueue: number[];
-  isRendering: boolean;
 
   constructor(props: PDFRendererProps) {
     super(props);
@@ -78,8 +78,7 @@ export default class PDFRenderer extends React.Component<
       defaultViewport: {
         width: DEFAULT_WIDTH,
         height: DEFAULT_HEIGHT
-      },
-      currentPage: 0
+      }
     };
     this.isRendering = false;
     this.numPages = 0;
@@ -111,12 +110,11 @@ export default class PDFRenderer extends React.Component<
   computeCurrentPage = () => {
     if (this.props.position === this.previousHeight) return false;
     const searchDown = this.props.position < this.previousHeight;
-    for (let i = this.state.currentPage; i < this.state.pages.length && i >= 0; searchDown ? i++ : i--) {
+    for (let i = this.context.currentPage; i <= this.state.pages.length && i >= 0; searchDown ? i++ : i--) {
       if (!this.state.pages[i]) break;
       if (this.isCurrentPage(this.state.pages[i].divRef)) {
-        if (this.state.currentPage === i) break;
-        trigger('PAGE_CHANGE', { page: i+1 });
-        this.setState({ currentPage: i });
+        if (this.context.currentPage === i) break;
+        this.context.setContext({ currentPage: i });
         break;
       }
     }
@@ -127,8 +125,9 @@ export default class PDFRenderer extends React.Component<
   isCurrentPage = (pageRef: React.RefObject<any>) => {
     const rect = pageRef.current.getBoundingClientRect();
     const screenCenter = (window.innerHeight || document.documentElement.clientHeight)/2;
+    const margin = PAGE_SPACE * this.props.scale;
     return (
-      rect.bottom >= screenCenter &&
+      rect.bottom + margin >= screenCenter &&
       rect.top <= screenCenter
     );
   }
@@ -136,17 +135,17 @@ export default class PDFRenderer extends React.Component<
   update = () => {
     const renderPromises = [
       new Promise<void>((resolve) => {
-        this.updatePage(this.state.currentPage, 'NONE', () => {
+        this.updatePage(this.context.currentPage, 'NONE', () => {
           resolve();
         });
       }),
       new Promise<void>((resolve) => {
-        this.updatePage(this.state.currentPage, 'UP', () => {
+        this.updatePage(this.context.currentPage, 'UP', () => {
           resolve();
         });
       }),
       new Promise<void>((resolve) => {
-        this.updatePage(this.state.currentPage, 'DOWN', () => {
+        this.updatePage(this.context.currentPage, 'DOWN', () => {
           resolve();
         });
       })
@@ -211,6 +210,11 @@ export default class PDFRenderer extends React.Component<
     const page = this.state.pages[index];
 
     if (!page.loaded) throw new Error('Page has not yet loaded!'); 
+
+    if (!page.canvasRef.current) {
+      console.log('Renference not yet linked!');
+      return this.renderPages(done);
+    }
 
     const context = page.canvasRef.current.getContext('2d');
     const renderContext = {
@@ -289,7 +293,7 @@ export default class PDFRenderer extends React.Component<
     const loadingTask = this.pdfjsLib.getDocument(this.props.pdfUrl);
     loadingTask.promise.then((pdf) => {
       this.numPages = pdf.numPages;
-      trigger('TOTAL_PAGES', {
+      this.context.setContext({
         totalPages: pdf.numPages
       });
       for (let i = 0; i < pdf.numPages; i++) {
@@ -315,7 +319,11 @@ export default class PDFRenderer extends React.Component<
             ref={page.divRef}
             id={`page-${page.pageNumber}`} 
             className="page-wrapper"
-            style={{height: page.viewport.height, width: page.viewport.width}}
+            style={{
+              height: page.viewport.height, 
+              width: page.viewport.width,
+              marginBottom: PAGE_SPACE * this.props.scale,
+            }}
           >
             <canvas ref={page.canvasRef} height={page.viewport.height} width={page.viewport.width}></canvas>
           </div>
@@ -328,7 +336,11 @@ export default class PDFRenderer extends React.Component<
             ref={page.divRef}
             id={`page-${page.pageNumber}`} 
             className="page-wrapper"
-            style={{height: DEFAULT_HEIGHT * this.props.scale, width: DEFAULT_WIDTH * this.props.scale}}
+            style={{
+              height: DEFAULT_HEIGHT * this.props.scale, 
+              width: DEFAULT_WIDTH * this.props.scale,
+              marginBottom: PAGE_SPACE * this.props.scale,
+            }}
           ></div>
         </>
       );
@@ -349,3 +361,7 @@ export default class PDFRenderer extends React.Component<
     );
   }
 }
+
+PDFRenderer.contextType = EditorContext;
+
+export default PDFRenderer;

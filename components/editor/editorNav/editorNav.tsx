@@ -3,17 +3,17 @@ import Navigate from './Navigate';
 import ArrowBackIosIcon from '@material-ui/icons/ArrowBackIos';
 import ArrowForwardIosIcon from '@material-ui/icons/ArrowForwardIos';
 import { listener, trigger } from '../../globalEvents/events';
+import { EditorContext } from '../EditorContext';
 
 interface EditorNavProps {}
 
 type Mode = 'navigate' | 'notes';
 
 interface EditorNavState {
-  retracted: boolean;
   mode: Mode;
 }
 
-export default class EditorNav extends React.Component<
+class EditorNav extends React.Component<
   EditorNavProps,
   EditorNavState
 > {
@@ -22,7 +22,6 @@ export default class EditorNav extends React.Component<
   constructor(props: EditorNavProps) {
     super(props);
     this.state = {
-      retracted: false,
       mode: 'navigate'
     };
   }
@@ -34,31 +33,28 @@ export default class EditorNav extends React.Component<
   };
 
   retracted = (retracted: boolean) => {
-    trigger('RETRACT_NAV', {
-      retracted
-    });
-    this.setState({
-      retracted
+    this.context.setContext({
+      navRetracted: retracted
     });
   };
 
   componentDidMount = () => {};
 
   render() {
-    const width = this.state.retracted ? '50px' : '300px';
+    const width = this.context.navRetracted ? '50px' : '300px';
 
     const mode =
       this.state.mode === 'navigate' ? (
         <div style={{ display: 'block' }}>
-          <Navigate retracted={this.state.retracted} />
+          <Navigate retracted={this.context.navRetracted} />
         </div>
       ) : (
         <div style={{ display: 'none' }}>
-          <Navigate retracted={this.state.retracted} />
+          <Navigate retracted={this.context.navRetracted} />
         </div>
       );
 
-    const nav = this.state.retracted ? (
+    const nav = this.context.navRetracted ? (
       <div className="editornav-tags">
         <div
           className="editornav-toggle"
@@ -108,3 +104,7 @@ export default class EditorNav extends React.Component<
     );
   }
 }
+
+EditorNav.contextType = EditorContext;
+
+export default EditorNav;
