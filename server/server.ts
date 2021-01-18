@@ -65,7 +65,7 @@ app.prepare().then(() => {
 
   server.get('/api/getNotes', async (req: any, res: any) => {
     res.send({
-      document: 'http://localhost/static/text3.pdf',
+      document: 'http://localhost/static/text2.pdf',
       currentPage: 1,
       projectName: 'Operating Systems',
       categories: [],

@@ -18,10 +18,6 @@ export default class Editor extends React.Component<{}, EditorState> {
       totalPages: 0,
       canvasIsLocked: false,
       navRetracted: false,
-      pos: {
-        x: 0, 
-        y: 0
-      },
       setContext: this.setContext
     };
   }

@@ -19,7 +19,6 @@ export default class Landing extends React.Component<LandingProps, LandingState>
       currentPage: 0,
       totalPages: 0
     };
-    
   }
 
   componentDidMount = () => {};

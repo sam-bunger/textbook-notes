@@ -1,25 +1,48 @@
 import React from 'react';
 import _ from 'lodash';
 import { Point, Bound, Rect } from '../../types';
-import { Loader } from './Loader';
 import { listener, trigger } from '../../globalEvents/events';
 import { convertRectCoordinates } from '../utils';
 import HighlightMenu from './HighlightMenu';
 import { NoteStorage } from '../NoteStorage';
 import { LayerManager } from '../layers/LayerManager';
-import NoteLayer from '../layers/notes/NoteLayer';
-import ReferenceLayer from '../layers/references/ReferenceLayer';
-import PDFRenderer from '../pdfRenderer/PDFRenderer';
-import LinkLayer from '../layers/links/LinkLayer';
 import { EditorContext, EditorState } from '../EditorContext';
+
+const DEFAULT_HEIGHT = 1400;
+const DEFAULT_WIDTH = 800;
+const MAX_LOADED = 10;
+const PAGE_SPACE = 16;
+
+type ScanDirection = 'NONE' | 'UP' | 'DOWN';
+
+interface Viewport {
+  height: number;
+  width: number;
+}
+
+interface BasePage {
+  pageNumber: number;
+  viewport?: Viewport;
+  divRef: React.RefObject<any>;
+  canvasRef: React.RefObject<any>;
+}
+
+interface LoadedPage extends BasePage {
+  page: any;
+  loaded: true;
+}
+
+interface UnloadedPage extends BasePage {
+  loaded: false;
+}
+
+type Page = LoadedPage | UnloadedPage;
 
 interface CanvasProps {}
 
 interface CanvasState {
   currentPage: number;
   totalPages: number;
-  scaleOffset: Point;
-  rel: Point;
   dragging: boolean;
   spacePressed: boolean;
   mouseIn: boolean;
@@ -28,7 +51,16 @@ interface CanvasState {
   pageWidth: number | null;
   file: string;
   lm: LayerManager | null;
-  testRect: Rect | null;
+  pos: Point;
+  rel: Point;
+  // testRect: Rect | null;
+  pdf: any | null;
+  pagePending: number;
+  pageRendering: boolean;
+  viewport?: any;
+  textContent?: any;
+  pages: Page[];
+  defaultViewport: Viewport;
 }
 
 const INITIAL_RENDER_WIDTH = 1300;
@@ -39,8 +71,19 @@ class Canvas extends React.Component<CanvasProps, CanvasState> {
   mousePos: Point;
   scaleBounds: Bound;
   canvasRef: React.RefObject<any>;
-  pageRef: React.RefObject<any>;
+  pdfjsLib!: any;
+  isRendering: boolean;
+  isLoading: boolean;
+  isScaling: boolean;
+  lastViewed: number;
+  numPages: number;
+  previousHeight: number;
+  renderedList: number[];
+  loadedQueue: number[];
+  renderQueue: number[];
+  expectedHeightChange: number;
   throttleSetPageWidth: () => void;
+  throttleRescale: () => void;
 
   constructor(props: CanvasProps) {
     super(props);
@@ -48,8 +91,6 @@ class Canvas extends React.Component<CanvasProps, CanvasState> {
     this.state = {
       currentPage: 1,
       totalPages: 0,
-      scaleOffset: { x: 0, y: 0},
-      rel: { x: 0, y: 0 },
       dragging: false,
       spacePressed: false,
       scale: 1,
@@ -58,7 +99,24 @@ class Canvas extends React.Component<CanvasProps, CanvasState> {
       file: null,
       mouseIn: true,
       lm: null,
-      testRect: null
+      pos: {
+        x: 0,
+        y: 0
+      },
+      rel: {
+        x: 0,
+        y: 0
+      },
+      pdf: null,
+      pagePending: -1,
+      pageRendering: false,
+      viewport: undefined,
+      textContent: undefined,
+      pages: [],
+      defaultViewport: {
+        width: DEFAULT_WIDTH,
+        height: DEFAULT_HEIGHT
+      }
     };
 
     this.mousePos = {
@@ -72,9 +130,22 @@ class Canvas extends React.Component<CanvasProps, CanvasState> {
     };
 
     this.canvasRef = React.createRef();
-    this.pageRef = null;
 
-    this.throttleSetPageWidth = _.throttle(this.adjustScaleAndPosition, 500);
+    this.isRendering = false;
+    this.isLoading = false;
+    this.isScaling = false;
+    this.numPages = 0;
+    this.previousHeight = 0;
+    this.renderedList = [];
+    this.loadedQueue = [];
+    this.renderQueue = [];
+    this.isRendering = false;
+    this.expectedHeightChange = 0;
+
+    this.throttleSetPageWidth = _.throttle(this.adjustScaleAndPosition, 100, {
+      leading: true
+    });
+    this.throttleRescale = _.debounce(this.rescale, 500);
   }
 
   componentDidMount = () => {
@@ -87,12 +158,23 @@ class Canvas extends React.Component<CanvasProps, CanvasState> {
     document.addEventListener('mouseup', this.onMouseUp);
 
     /* Set listeners */
-    listener('PAGE_CHANGE', this.changePage);
     listener('LOAD_NOTES', this.loadNotes);
-    listener('RETRACT_NAV', this.updateRetracted);
+
+    window.pdfjsLib.GlobalWorkerOptions.workerSrc = `http://${window.location.hostname}/pdfjs/worker`;
+    this.pdfjsLib = window.pdfjsLib;
+    this.documentSetup();
   };
 
-  componentDidUpdate = (props, state) => {};
+  componentDidUpdate = (props, state) => {
+    if (this.state.file !== state.file) {
+      this.documentSetup();
+    }
+    if (this.state.scale !== state.scale) {
+      this.rescale();
+    } else if (this.computeCurrentPage()) {
+      this.update();
+    }
+  };
 
   componentWillUnmount() {
     document.removeEventListener('mousemove', this.onMouseMove);
@@ -103,15 +185,288 @@ class Canvas extends React.Component<CanvasProps, CanvasState> {
     document.removeEventListener('resize', this.throttleSetPageWidth);
   }
 
+  /** RENDERING **/
+
+  computeCurrentPage = () => {
+    if (this.state.pos.y === this.previousHeight) return false;
+    const searchDown = this.state.pos.y < this.previousHeight;
+    for (let i = this.context.currentPage; i <= this.state.pages.length && i >= 0; searchDown ? i++ : i--) {
+      if (!this.state.pages[i]) break;
+      if (this.isCurrentPage(this.state.pages[i].divRef)) {
+        if (this.context.currentPage === i) break;
+        this.context.setContext({ currentPage: i });
+        break;
+      }
+    }
+    this.previousHeight = this.state.pos.y;
+    return true;
+  }
+
+  isCurrentPage = (pageRef: React.RefObject<any>) => {
+    const rect = pageRef.current.getBoundingClientRect();
+    const screenCenter = (window.innerHeight || document.documentElement.clientHeight)/2;
+    const margin = PAGE_SPACE * this.state.scale;
+    return (
+      rect.bottom + margin >= screenCenter &&
+      rect.top <= screenCenter
+    );
+  }
+
+  update = () => {
+    if (this.isLoading) return;
+    this.isLoading = true;
+    const renderPromises = [
+      new Promise<void>((resolve) => {
+        this.updatePage(this.context.currentPage, 'NONE', () => {
+          resolve();
+        });
+      }),
+      new Promise<void>((resolve) => {
+        this.updatePage(this.context.currentPage, 'UP', () => {
+          resolve();
+        });
+      }),
+      new Promise<void>((resolve) => {
+        this.updatePage(this.context.currentPage, 'DOWN', () => {
+          resolve();
+        });
+      })
+    ];
+    
+    Promise.all(renderPromises).then(() => {
+      this.setState({
+        pages: this.state.pages
+      }, () => {
+        this.isLoading = false;
+        this.adjustPageHeight();
+        this.renderLock();
+      });
+    });
+  }
+
+  adjustPageHeight = () => {
+    if (!this.expectedHeightChange) return;
+    const wasDragging = this.state.dragging;
+    this.setState({
+      dragging: false,
+      pos: {
+        x: this.state.pos.x,
+        y: this.state.pos.y + this.expectedHeightChange
+      }
+    }, () => {
+      this.expectedHeightChange = 0;
+      if (wasDragging) this.resetMouseHold();
+    });
+  }
+
+  updatePage = (index: number, direction: ScanDirection, done: () => void) => {
+
+    const isDone = () => {
+      if (direction === 'NONE') done();
+      else if (direction === 'DOWN') {
+        this.updatePage(index + 1, direction, done);
+      } else if (direction === 'UP') {
+        this.updatePage(index - 1, direction, done);
+      } 
+    };
+
+    const page = this.state.pages[index];
+    
+    if (!page || !this.isViewable(page.divRef)) return done();
+
+    if (this.renderedList.includes(index)) return isDone();
+
+    if (page.loaded) {
+      this.queueForRender(index);
+      isDone();
+    } else {
+      this.grabPageData(index, direction === 'UP', () => {
+        this.queueForRender(index);
+        isDone();
+      });
+    }
+  }
+
+  queueForRender = (index: number) => {
+    if (!this.renderQueue.includes(index)) {
+      this.renderQueue.push(index);
+    }
+  }
+
+  renderLock = (done?: () => void) => {
+    if (this.isRendering) return;
+    this.isRendering = true;
+    this.renderPages(() => {
+      if (done) done();
+    });
+  }
+
+  renderPages = (done: () => void) => {
+
+    if (this.renderQueue.length === 0) {
+      this.isRendering = false;
+      return done();
+    }
+    
+    const index = this.renderQueue.shift();
+    const page = this.state.pages[index];
+
+    if (!page.loaded) throw new Error('Page has not yet loaded!'); 
+
+    if (!page.canvasRef.current) {
+      return this.renderPages(done);
+    }
+
+    const context = page.canvasRef.current.getContext('2d');
+    const renderContext = {
+      canvasContext: context,
+      viewport: page.viewport
+    };
+    //Render the page
+    page.page.render(renderContext).promise
+    .then(() => {
+      this.renderedList.push(index);
+
+      if (this.renderQueue.length == 0) {
+        this.isRendering = false;
+        return done();
+      }
+
+      this.renderPages(done);
+    })
+    .catch(error => {
+      console.error(error);
+
+      if (this.renderQueue.length == 0) {
+        this.isRendering = false;
+        return done();
+      }
+
+      this.renderPages(done);
+    }); 
+  }
+
+  grabPageData = (index: number, adjustHeight: boolean, cb: () => void) => {
+    this.state.pdf.getPage(index+1).then((page) => {
+      //Load in contents of new page
+      const currentPage: LoadedPage = this.state.pages[index] as LoadedPage;
+      const viewport = page.getViewport({ scale: this.state.scale });
+
+      if (adjustHeight) this.expectedHeightChange += (DEFAULT_HEIGHT * this.state.scale) - viewport.height;
+
+      currentPage.loaded = true;
+      currentPage.page = page;
+      currentPage.viewport = viewport;
+      
+      //Add new page to queue
+      const queueIndex = this.loadedQueue.indexOf(index);
+      if (queueIndex > -1) {
+        this.loadedQueue.slice(queueIndex);
+        this.loadedQueue.push(index);
+      }
+
+      //Remove from queue if too many loaded pages
+      if (this.loadedQueue.length > MAX_LOADED) {
+        const removeIndex = this.loadedQueue.shift();
+
+        const page: LoadedPage = this.state.pages[removeIndex] as LoadedPage;
+        delete page.page;
+
+        const pageSetLoadedFalse = this.state.pages[removeIndex];
+        pageSetLoadedFalse.loaded = false;
+      }
+
+      cb();
+    });
+  }
+
+  isViewable = (pageRef: React.RefObject<any>) => {
+    const rect = pageRef.current.getBoundingClientRect();
+    return !(
+      rect.bottom <= -500 ||
+      rect.right <= 0 ||
+      rect.top >= (window.innerHeight || document.documentElement.clientHeight) + 500 ||
+      rect.left >= (window.innerWidth || document.documentElement.clientWidth)
+    );
+  }
+
+  rescale = () => {
+    if (this.isScaling) return;
+    this.isScaling = true;
+    for (const page of this.state.pages) {
+      if (page.loaded)
+        page.viewport = page.page.getViewport({ scale: this.state.scale });
+    }
+    this.setState({
+      pages: this.state.pages
+    }, () => {
+      this.renderedList = [];
+      this.isScaling = false;
+      setTimeout(this.update, 1);
+    });
+  }
+
+  documentSetup = () => {
+    if (!this.state.file) return;
+    console.log('URL: ', this.state.file);
+    const loadingTask = this.pdfjsLib.getDocument(this.state.file);
+    loadingTask.promise.then((pdf) => {
+      this.numPages = pdf.numPages;
+      this.context.setContext({
+        totalPages: pdf.numPages
+      });
+      for (let i = 0; i < pdf.numPages; i++) {
+        this.state.pages.push({
+          pageNumber: i,
+          divRef: React.createRef(),
+          canvasRef: React.createRef(),
+          loaded: false
+        });
+      }
+      this.setState({
+        pages: this.state.pages,
+        pdf
+      });
+    });
+  };
+
+  buildPageDOM = (page: Page) => {
+    if (page.viewport && page.loaded) {
+      return (
+        <>
+          <div
+            ref={page.divRef}
+            id={`page-${page.pageNumber}`} 
+            className="page-wrapper"
+            style={{
+              height: page.viewport.height, 
+              width: page.viewport.width,
+              marginBottom: PAGE_SPACE * this.state.scale,
+            }}
+          >
+            <canvas ref={page.canvasRef} height={page.viewport.height} width={page.viewport.width}></canvas>
+          </div>
+        </>
+      );
+    } else {
+      return (
+        <>
+          <div
+            ref={page.divRef}
+            id={`page-${page.pageNumber}`} 
+            className="page-wrapper"
+            style={{
+              height: DEFAULT_HEIGHT * this.state.scale, 
+              width: DEFAULT_WIDTH * this.state.scale,
+              marginBottom: PAGE_SPACE * this.state.scale,
+            }}
+          ></div>
+        </>
+      );
+    }
+  }
+
   /* Handle Global Events */
-
-  updateRetracted = ({ retracted }) => {
-    this.setState({ mouseIn: retracted });
-  };
-
-  changePage = ({ page }) => {
-    this.setState({ currentPage: page });
-  };
 
   loadNotes = (notesData: NoteStorage) => {
     console.log('UPDATE: ', notesData.document);
@@ -131,14 +486,12 @@ class Canvas extends React.Component<CanvasProps, CanvasState> {
     };
 
     this.setState({
-      scale: newScale
-    });
-    this.context.setContext({
+      scale: newScale,
       pos: {
         x: width / 2 - (INITIAL_RENDER_WIDTH * newScale) / 2,
-        y: this.context.pos.y
+        y: this.state.pos.y
       }
-    });       
+    });   
   };
 
   /* Page Handlers */
@@ -150,7 +503,8 @@ class Canvas extends React.Component<CanvasProps, CanvasState> {
   }
 
   keyDownHandler = (e) => {
-    if (e.keyCode === 32) {
+    if (e.keyCode === 32) { 
+      //Spacebar
       trigger('CANVAS_LOCKED', { locked: true });
       this.setState({
         spacePressed: true
@@ -160,6 +514,7 @@ class Canvas extends React.Component<CanvasProps, CanvasState> {
 
   keyUpHandler = (e) => {
     if (e.keyCode === 32) {
+      //Spacebar
       trigger('CANVAS_LOCKED', { locked: false });
       this.setState({
         spacePressed: false,
@@ -172,8 +527,8 @@ class Canvas extends React.Component<CanvasProps, CanvasState> {
   scrollHandler = (e) => {
     if (!this.state.mouseIn) return;
     if (!this.state.spacePressed) {
-      const pos = this.context.pos;
-      this.context.setContext({
+      const pos = this.state.pos;
+      this.setState({
         pos: {
           x: pos.x + e.wheelDeltaX,
           y: pos.y + e.wheelDeltaY
@@ -188,21 +543,16 @@ class Canvas extends React.Component<CanvasProps, CanvasState> {
 
       //Get difference in mouse and document positions
 
-      console.log('MOUSE Y: ', this.context.pos.y);
-      console.log('window: ', window.innerHeight);
-
       const diffPos: Point = {
-        x: (this.context.pos.x - this.mousePos.x) * percentChange,
-        y: (this.context.pos.y - 400) * percentChange
+        x: (this.state.pos.x - this.mousePos.x) * percentChange,
+        y: (this.state.pos.y - 400) * percentChange
       };
 
       this.setState({
-        scale: newScale
-      });
-      this.context.setContext({
+        scale: newScale,
         pos: {
-          x: this.context.pos.x + diffPos.x,
-          y: this.context.pos.y + diffPos.y
+          x: this.state.pos.x + diffPos.x,
+          y: this.state.pos.y + diffPos.y
         }
       });
     }
@@ -213,7 +563,7 @@ class Canvas extends React.Component<CanvasProps, CanvasState> {
     if (e.button !== 0) return;
     if (!this.state.spacePressed) return;
 
-    const pos = this.context.pos;
+    const pos = this.state.pos;
 
     this.setState({
       dragging: true,
@@ -238,7 +588,7 @@ class Canvas extends React.Component<CanvasProps, CanvasState> {
     this.mousePos.x = e.pageX;
     this.mousePos.y = e.pageY;
     if (!this.state.dragging) return;
-    this.context.setContext({
+    this.setState({
       pos: {
         x: e.pageX - this.state.rel.x,
         y: e.pageY - this.state.rel.y
@@ -248,58 +598,41 @@ class Canvas extends React.Component<CanvasProps, CanvasState> {
     e.preventDefault();
   };
 
+  resetMouseHold = () => {
+    const pos = this.state.pos;
+    this.setState({
+      dragging: true,
+      rel: {
+        x: this.mousePos.x - pos.x,
+        y: this.mousePos.y - pos.y
+      }
+    });
+  }
+
   createReference = (boundingRect: Rect, text: string) => {
     const convertedRect: Rect = convertRectCoordinates(
       boundingRect,
-      this.context.pos,
+      this.state.pos,
       this.state.scale
     );
     this.state.lm.createReference(convertedRect, text);
-    this.setState({ testRect: convertedRect });
   };
 
   render() {
+    const items = [];
+    for(const page of this.state.pages) {
+      items.push(this.buildPageDOM(page));
+    }
+
     const cursor: string = this.state.spacePressed
       ? this.state.dragging
         ? 'grabbing'
         : 'grab'
       : 'default';
 
-    const positionWithScale = {
-      transform: `translate(${this.context.pos.x}px, ${this.context.pos.y}px) scale(${this.state.scale})`
-    };
-
-    const positionWithRelativeScale = {
-      transform: `translate(${this.context.pos.x}px, ${this.context.pos.y}px) scale(${
-        1 + (this.state.scale - this.state.scaleFinal)
-      })`
-    };
-
     const positionWithoutScale = {
-      transform: `translate(${this.context.pos.x}px, ${this.context.pos.y}px)`
+      transform: `translate(${this.state.pos.x}px, ${this.state.pos.y}px)`
     };
-
-    const testRectStyle = this.state.testRect
-      ? {
-          transform: `translate(${this.state.testRect.x}px, ${this.state.testRect.y}px)`,
-          width: `${this.state.testRect.width}px`,
-          height: `${this.state.testRect.height}px`
-        }
-      : {
-          display: 'none'
-        };
-
-    const layers = this.state.lm ? (
-      <>
-        <ReferenceLayer lm={this.state.lm} />
-        <NoteLayer lm={this.state.lm} />
-        <LinkLayer
-          lm={this.state.lm}
-          width={this.canvasRef.current.offsetWidth}
-          height={this.canvasRef.current.offsetHeight}
-        />
-      </>
-    ) : null;
 
     return (
       <>
@@ -312,17 +645,10 @@ class Canvas extends React.Component<CanvasProps, CanvasState> {
           ref={this.canvasRef}
         >
           <HighlightMenu createReference={this.createReference} />
-          <div className="notes-layer" style={positionWithScale}>
-            {/* {layers} */}
-            {/* <div className="rect" style={testRectStyle} /> */}
-          </div>
           <div className="document-layer" style={positionWithoutScale}>
-            <PDFRenderer
-              pdfUrl={this.state.file}
-              pageNumber={this.context.currentPage}
-              scale={this.state.scale}
-              position={this.context.pos.y}
-            />
+            <div className="pdfViewer">
+              {items}
+            </div>
           </div>
         </div>
       </>
