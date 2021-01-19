@@ -22,7 +22,6 @@ interface Viewport {
 
 interface BasePage {
   pageNumber: number;
-  viewport?: Viewport;
   divRef: React.RefObject<any>;
   canvasRef: React.RefObject<any>;
 }
@@ -61,6 +60,8 @@ interface CanvasState {
   textContent?: any;
   pages: Page[];
   defaultViewport: Viewport;
+  lastRenderedScale: number;
+  pageScale: number;
 }
 
 const INITIAL_RENDER_WIDTH = 1300;
@@ -75,6 +76,7 @@ class Canvas extends React.Component<CanvasProps, CanvasState> {
   isRendering: boolean;
   isLoading: boolean;
   isScaling: boolean;
+  rescaling: boolean;
   lastViewed: number;
   numPages: number;
   previousHeight: number;
@@ -84,6 +86,7 @@ class Canvas extends React.Component<CanvasProps, CanvasState> {
   expectedHeightChange: number;
   throttleSetPageWidth: () => void;
   throttleRescale: () => void;
+  throttleRenderLock: () => void;
 
   constructor(props: CanvasProps) {
     super(props);
@@ -116,7 +119,9 @@ class Canvas extends React.Component<CanvasProps, CanvasState> {
       defaultViewport: {
         width: DEFAULT_WIDTH,
         height: DEFAULT_HEIGHT
-      }
+      },
+      lastRenderedScale: 1,
+      pageScale: 1
     };
 
     this.mousePos = {
@@ -134,6 +139,7 @@ class Canvas extends React.Component<CanvasProps, CanvasState> {
     this.isRendering = false;
     this.isLoading = false;
     this.isScaling = false;
+    this.rescaling = false;
     this.numPages = 0;
     this.previousHeight = 0;
     this.renderedList = [];
@@ -146,6 +152,7 @@ class Canvas extends React.Component<CanvasProps, CanvasState> {
       leading: true
     });
     this.throttleRescale = _.debounce(this.rescale, 500);
+    this.throttleRenderLock = _.throttle(this.renderLock, 100);
   }
 
   componentDidMount = () => {
@@ -234,12 +241,21 @@ class Canvas extends React.Component<CanvasProps, CanvasState> {
     ];
     
     Promise.all(renderPromises).then(() => {
+      let newPageScale = this.state.pageScale;
+      if (this.state.scale != this.state.lastRenderedScale) {
+        console.log('scale: ', this.state.scale);
+        console.log('last scale: ', this.state.lastRenderedScale);
+        newPageScale = this.state.scale/this.state.lastRenderedScale;
+        console.log('new scale: ', newPageScale);
+      }
+
       this.setState({
-        pages: this.state.pages
+        pages: this.state.pages,
+        pageScale: newPageScale
       }, () => {
         this.isLoading = false;
         this.adjustPageHeight();
-        this.renderLock();
+        this.throttleRenderLock();
       });
     });
   }
@@ -254,6 +270,7 @@ class Canvas extends React.Component<CanvasProps, CanvasState> {
         y: this.state.pos.y + this.expectedHeightChange
       }
     }, () => {
+      this.previousHeight = this.state.pos.y + this.expectedHeightChange;
       this.expectedHeightChange = 0;
       if (wasDragging) this.resetMouseHold();
     });
@@ -297,6 +314,10 @@ class Canvas extends React.Component<CanvasProps, CanvasState> {
     if (this.isRendering) return;
     this.isRendering = true;
     this.renderPages(() => {
+      this.setState({
+        pageScale: 1,
+        lastRenderedScale: this.state.scale
+      });
       if (done) done();
     });
   }
@@ -317,14 +338,19 @@ class Canvas extends React.Component<CanvasProps, CanvasState> {
       return this.renderPages(done);
     }
 
+    const viewport = page.page.getViewport({ scale: this.state.scale });
+    page.canvasRef.current.width = viewport.width;
+    page.canvasRef.current.height = viewport.height;
     const context = page.canvasRef.current.getContext('2d');
     const renderContext = {
       canvasContext: context,
-      viewport: page.viewport
+      viewport: viewport
     };
+
     //Render the page
     page.page.render(renderContext).promise
     .then(() => {
+
       this.renderedList.push(index);
 
       if (this.renderQueue.length == 0) {
@@ -356,7 +382,6 @@ class Canvas extends React.Component<CanvasProps, CanvasState> {
 
       currentPage.loaded = true;
       currentPage.page = page;
-      currentPage.viewport = viewport;
       
       //Add new page to queue
       const queueIndex = this.loadedQueue.indexOf(index);
@@ -391,19 +416,9 @@ class Canvas extends React.Component<CanvasProps, CanvasState> {
   }
 
   rescale = () => {
-    if (this.isScaling) return;
-    this.isScaling = true;
-    for (const page of this.state.pages) {
-      if (page.loaded)
-        page.viewport = page.page.getViewport({ scale: this.state.scale });
-    }
-    this.setState({
-      pages: this.state.pages
-    }, () => {
-      this.renderedList = [];
-      this.isScaling = false;
-      setTimeout(this.update, 1);
-    });
+    this.rescaling = true;
+    this.renderedList = [];
+    this.update();
   }
 
   documentSetup = () => {
@@ -420,7 +435,7 @@ class Canvas extends React.Component<CanvasProps, CanvasState> {
           pageNumber: i,
           divRef: React.createRef(),
           canvasRef: React.createRef(),
-          loaded: false
+          loaded: false        
         });
       }
       this.setState({
@@ -431,20 +446,35 @@ class Canvas extends React.Component<CanvasProps, CanvasState> {
   };
 
   buildPageDOM = (page: Page) => {
-    if (page.viewport && page.loaded) {
+    if (page.loaded) {
+      let viewport, style;
+      if (this.state.pageScale === 1) {
+        viewport = page.page.getViewport({ scale: this.state.scale });
+        style = {
+          height: viewport.height, 
+          width: viewport.width,
+          marginBottom: PAGE_SPACE * this.state.scale
+        };
+      } else {
+        viewport = page.page.getViewport({ scale: this.state.lastRenderedScale });
+        style = {
+          height: viewport.height,
+          width: viewport.width,
+          marginBottom: PAGE_SPACE * this.state.scale,
+          transform: `scale(${this.state.pageScale})`
+        };
+      }
+
       return (
         <>
           <div
             ref={page.divRef}
             id={`page-${page.pageNumber}`} 
             className="page-wrapper"
-            style={{
-              height: page.viewport.height, 
-              width: page.viewport.width,
-              marginBottom: PAGE_SPACE * this.state.scale,
-            }}
+            style={style}
           >
-            <canvas ref={page.canvasRef} height={page.viewport.height} width={page.viewport.width}></canvas>
+            {/* width={viewport.width} height={viewport.height} */}
+            <canvas ref={page.canvasRef}></canvas>
           </div>
         </>
       );
@@ -540,13 +570,19 @@ class Canvas extends React.Component<CanvasProps, CanvasState> {
 
       //Percent change
       const percentChange: number = (newScale - this.state.scale) / this.state.scale;
-
+      console.log(this.state.pos);
+      
       //Get difference in mouse and document positions
 
       const diffPos: Point = {
         x: (this.state.pos.x - this.mousePos.x) * percentChange,
         y: (this.state.pos.y - 400) * percentChange
       };
+
+      console.log({
+        x: this.state.pos.x + diffPos.x,
+        y: this.state.pos.y + diffPos.y
+      });
 
       this.setState({
         scale: newScale,
