@@ -82,9 +82,11 @@ class Canvas extends React.Component<CanvasProps, CanvasState> {
   loadedQueue: number[];
   renderQueue: number[];
   expectedHeightChange: number;
+  currentRenderTask?: any;
   throttleSetPageWidth: () => void;
   throttleRescale: () => void;
   throttleRenderLock: () => void;
+  throttleUpdate: () => void;
 
   constructor(props: CanvasProps) {
     super(props);
@@ -143,12 +145,14 @@ class Canvas extends React.Component<CanvasProps, CanvasState> {
     this.renderQueue = [];
     this.isRendering = false;
     this.expectedHeightChange = 0;
+    this.currentRenderTask = 0;
 
     this.throttleSetPageWidth = _.throttle(this.adjustScaleAndPosition, 100, {
       leading: true
     });
     this.throttleRescale = _.debounce(this.rescale, 500);
     this.throttleRenderLock = _.throttle(this.renderLock, 200);
+    this.throttleUpdate = _.throttle(this.update, 200);
   }
 
   componentDidMount = () => {
@@ -175,7 +179,7 @@ class Canvas extends React.Component<CanvasProps, CanvasState> {
     if (this.state.scale !== state.scale) {
       this.throttleRescale();
     } else if (this.computeCurrentPage()) {
-      this.update();
+      this.throttleUpdate();
     }
   };
 
@@ -218,6 +222,9 @@ class Canvas extends React.Component<CanvasProps, CanvasState> {
   update = () => {
     if (this.isLoading) return;
     this.isLoading = true;
+
+    this.cancelRender();
+
     const renderPromises = [
       new Promise<void>((resolve) => {
         this.updatePage(this.context.currentPage, 'NONE', () => {
@@ -300,11 +307,20 @@ class Canvas extends React.Component<CanvasProps, CanvasState> {
   renderLock = (done?: () => void) => {
     if (this.isRendering) return;
     this.isRendering = true;
-    console.log('rendering');
-    this.renderPages(() => {
-      this.isScaling = false;
-      if (done) done();
+    window.requestAnimationFrame(() => {
+      this.renderPages(() => {
+        this.isScaling = false;
+        if (done) done();
+      });
     });
+  }
+
+  cancelRender = () => {
+    if(this.currentRenderTask) {
+      this.currentRenderTask.cancel();
+      this.currentRenderTask = undefined;
+    }
+    this.renderQueue = [];
   }
 
   renderPages = (done: () => void) => {
@@ -320,7 +336,10 @@ class Canvas extends React.Component<CanvasProps, CanvasState> {
     if (!page.loaded) throw new Error('Page has not yet loaded!'); 
 
     if (!page.canvasRef.current) {
-      return this.renderPages(done);
+      window.requestAnimationFrame(() => {
+        this.renderPages(done);
+      });
+      return;
     }
 
     const viewport = page.page.getViewport({ scale: this.state.scale * CSS_UNITS });
@@ -356,8 +375,10 @@ class Canvas extends React.Component<CanvasProps, CanvasState> {
     };
 
     //Render the page
-    page.page.render(renderContext).promise
+    this.currentRenderTask = page.page.render(renderContext);
+    this.currentRenderTask.promise
     .then(() => {
+      this.currentRenderTask = undefined;
       showCanvas();
       this.renderedList.push(this.renderQueue.shift());
 
@@ -365,19 +386,14 @@ class Canvas extends React.Component<CanvasProps, CanvasState> {
         this.isRendering = false;
         return done();
       }
-
-      this.renderPages(done);
+      window.requestAnimationFrame(() => {
+        this.renderPages(done);
+      });
     })
     .catch(error => {
-      showCanvas();
-      console.error(error);
-
-      if (this.renderQueue.length == 0) {
-        this.isRendering = false;
-        return done();
-      }
-
-      this.renderPages(done);
+      this.currentRenderTask = undefined;
+      this.isRendering = false;
+      done();
     }); 
   }
 
@@ -387,7 +403,7 @@ class Canvas extends React.Component<CanvasProps, CanvasState> {
       const currentPage: LoadedPage = this.state.pages[index] as LoadedPage;
       const viewport = page.getViewport({ scale: this.state.scale * CSS_UNITS });
 
-      if (adjustHeight) this.expectedHeightChange += (DEFAULT_HEIGHT * this.state.scale) - viewport.height;
+      if (adjustHeight) this.expectedHeightChange += (this.state.defaultViewport.height * this.state.scale) - viewport.height;
 
       currentPage.loaded = true;
       currentPage.page = page;
@@ -417,9 +433,9 @@ class Canvas extends React.Component<CanvasProps, CanvasState> {
   isViewable = (pageRef: React.RefObject<any>) => {
     const rect = pageRef.current.getBoundingClientRect();
     return !(
-      rect.bottom <= -500 ||
+      rect.bottom <= -1500 ||
       rect.right <= 0 ||
-      rect.top >= (window.innerHeight || document.documentElement.clientHeight) + 500 ||
+      rect.top >= (window.innerHeight || document.documentElement.clientHeight) + 1500 ||
       rect.left >= (window.innerWidth || document.documentElement.clientWidth)
     );
   }
@@ -517,8 +533,8 @@ class Canvas extends React.Component<CanvasProps, CanvasState> {
     const newScale = (width * INITIAL_PAGE_SCALE) / INITIAL_RENDER_WIDTH;
 
     this.scaleBounds = {
-      high: newScale + newScale * 0.8,
-      low: newScale - newScale
+      high: newScale + newScale * 0.4,
+      low: newScale - newScale * 0.8
     };
 
     this.setState({
