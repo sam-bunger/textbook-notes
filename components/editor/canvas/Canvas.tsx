@@ -7,7 +7,10 @@ import HighlightMenu from './HighlightMenu';
 import { NoteStorage } from '../NoteStorage';
 import { LayerManager } from '../layers/LayerManager';
 import { EditorContext, EditorState } from '../EditorContext';
+import { approximateFraction, CSS_UNITS, getOutputScale, roundToDivide } from '../../utils';
 
+const INITIAL_RENDER_WIDTH = 1300;
+const INITIAL_PAGE_SCALE = 1;
 const DEFAULT_HEIGHT = 1400;
 const DEFAULT_WIDTH = 800;
 const MAX_LOADED = 10;
@@ -60,12 +63,7 @@ interface CanvasState {
   textContent?: any;
   pages: Page[];
   defaultViewport: Viewport;
-  lastRenderedScale: number;
-  pageScale: number;
 }
-
-const INITIAL_RENDER_WIDTH = 1300;
-const INTIAL_PAGE_SCALE = 1;
 
 class Canvas extends React.Component<CanvasProps, CanvasState> {
   state: CanvasState;
@@ -120,8 +118,6 @@ class Canvas extends React.Component<CanvasProps, CanvasState> {
         width: DEFAULT_WIDTH,
         height: DEFAULT_HEIGHT
       },
-      lastRenderedScale: 1,
-      pageScale: 1
     };
 
     this.mousePos = {
@@ -152,7 +148,7 @@ class Canvas extends React.Component<CanvasProps, CanvasState> {
       leading: true
     });
     this.throttleRescale = _.debounce(this.rescale, 500);
-    this.throttleRenderLock = _.throttle(this.renderLock, 100);
+    this.throttleRenderLock = _.throttle(this.renderLock, 200);
   }
 
   componentDidMount = () => {
@@ -177,7 +173,7 @@ class Canvas extends React.Component<CanvasProps, CanvasState> {
       this.documentSetup();
     }
     if (this.state.scale !== state.scale) {
-      this.rescale();
+      this.throttleRescale();
     } else if (this.computeCurrentPage()) {
       this.update();
     }
@@ -241,17 +237,8 @@ class Canvas extends React.Component<CanvasProps, CanvasState> {
     ];
     
     Promise.all(renderPromises).then(() => {
-      let newPageScale = this.state.pageScale;
-      if (this.state.scale != this.state.lastRenderedScale) {
-        console.log('scale: ', this.state.scale);
-        console.log('last scale: ', this.state.lastRenderedScale);
-        newPageScale = this.state.scale/this.state.lastRenderedScale;
-        console.log('new scale: ', newPageScale);
-      }
-
       this.setState({
-        pages: this.state.pages,
-        pageScale: newPageScale
+        pages: this.state.pages
       }, () => {
         this.isLoading = false;
         this.adjustPageHeight();
@@ -313,11 +300,9 @@ class Canvas extends React.Component<CanvasProps, CanvasState> {
   renderLock = (done?: () => void) => {
     if (this.isRendering) return;
     this.isRendering = true;
+    console.log('rendering');
     this.renderPages(() => {
-      this.setState({
-        pageScale: 1,
-        lastRenderedScale: this.state.scale
-      });
+      this.isScaling = false;
       if (done) done();
     });
   }
@@ -328,8 +313,8 @@ class Canvas extends React.Component<CanvasProps, CanvasState> {
       this.isRendering = false;
       return done();
     }
-    
-    const index = this.renderQueue.shift();
+
+    const index = this.renderQueue[0];
     const page = this.state.pages[index];
 
     if (!page.loaded) throw new Error('Page has not yet loaded!'); 
@@ -338,20 +323,43 @@ class Canvas extends React.Component<CanvasProps, CanvasState> {
       return this.renderPages(done);
     }
 
-    const viewport = page.page.getViewport({ scale: this.state.scale });
-    page.canvasRef.current.width = viewport.width;
-    page.canvasRef.current.height = viewport.height;
-    const context = page.canvasRef.current.getContext('2d');
+    const viewport = page.page.getViewport({ scale: this.state.scale * CSS_UNITS });
+    const canvas = page.canvasRef.current;
+    canvas.setAttribute('hidden', 'hidden');
+    
+    let isCanvasHidden = true;
+    const showCanvas = function () {
+      if (isCanvasHidden) {
+        canvas.removeAttribute('hidden');
+        isCanvasHidden = false;
+      }
+    };
+
+    const ctx = canvas.getContext('2d', { alpha: false });
+    const outputScale = getOutputScale(ctx);
+
+    const sfx = approximateFraction(outputScale.sx);
+    const sfy = approximateFraction(outputScale.sy);
+    canvas.width = roundToDivide(viewport.width * outputScale.sx, sfx[0]);
+    canvas.height = roundToDivide(viewport.height * outputScale.sy, sfy[0]);
+    canvas.style.width = roundToDivide(viewport.width, sfx[1]) + 'px';
+    canvas.style.height = roundToDivide(viewport.height, sfy[1]) + 'px';
+
+    // Rendering area
+    const transform = !outputScale.scaled
+      ? null
+      : [outputScale.sx, 0, 0, outputScale.sy, 0, 0];
     const renderContext = {
-      canvasContext: context,
-      viewport: viewport
+      canvasContext: ctx,
+      transform,
+      viewport: viewport,
     };
 
     //Render the page
     page.page.render(renderContext).promise
     .then(() => {
-
-      this.renderedList.push(index);
+      showCanvas();
+      this.renderedList.push(this.renderQueue.shift());
 
       if (this.renderQueue.length == 0) {
         this.isRendering = false;
@@ -361,6 +369,7 @@ class Canvas extends React.Component<CanvasProps, CanvasState> {
       this.renderPages(done);
     })
     .catch(error => {
+      showCanvas();
       console.error(error);
 
       if (this.renderQueue.length == 0) {
@@ -376,7 +385,7 @@ class Canvas extends React.Component<CanvasProps, CanvasState> {
     this.state.pdf.getPage(index+1).then((page) => {
       //Load in contents of new page
       const currentPage: LoadedPage = this.state.pages[index] as LoadedPage;
-      const viewport = page.getViewport({ scale: this.state.scale });
+      const viewport = page.getViewport({ scale: this.state.scale * CSS_UNITS });
 
       if (adjustHeight) this.expectedHeightChange += (DEFAULT_HEIGHT * this.state.scale) - viewport.height;
 
@@ -416,14 +425,14 @@ class Canvas extends React.Component<CanvasProps, CanvasState> {
   }
 
   rescale = () => {
-    this.rescaling = true;
+    // if (this.isScaling) return;
+    this.isScaling = true;
     this.renderedList = [];
     this.update();
   }
 
   documentSetup = () => {
     if (!this.state.file) return;
-    console.log('URL: ', this.state.file);
     const loadingTask = this.pdfjsLib.getDocument(this.state.file);
     loadingTask.promise.then((pdf) => {
       this.numPages = pdf.numPages;
@@ -438,6 +447,15 @@ class Canvas extends React.Component<CanvasProps, CanvasState> {
           loaded: false        
         });
       }
+      pdf.getPage(1).then((page) => {
+        const viewport = page.getViewport({ scale: CSS_UNITS });
+        this.setState({
+          defaultViewport: {
+            height: viewport.height,
+            width: viewport.width
+          }
+        });
+      });
       this.setState({
         pages: this.state.pages,
         pdf
@@ -447,23 +465,12 @@ class Canvas extends React.Component<CanvasProps, CanvasState> {
 
   buildPageDOM = (page: Page) => {
     if (page.loaded) {
-      let viewport, style;
-      if (this.state.pageScale === 1) {
-        viewport = page.page.getViewport({ scale: this.state.scale });
-        style = {
-          height: viewport.height, 
-          width: viewport.width,
-          marginBottom: PAGE_SPACE * this.state.scale
-        };
-      } else {
-        viewport = page.page.getViewport({ scale: this.state.lastRenderedScale });
-        style = {
-          height: viewport.height,
-          width: viewport.width,
-          marginBottom: PAGE_SPACE * this.state.scale,
-          transform: `scale(${this.state.pageScale})`
-        };
-      }
+      const viewport = page.page.getViewport({ scale: this.state.scale * CSS_UNITS });
+      const style = {
+        height: Math.floor(viewport.height) + 'px',
+        width: Math.floor(viewport.width) + 'px',
+        marginBottom: Math.floor(PAGE_SPACE * this.state.scale) + 'px'
+      };
 
       return (
         <>
@@ -473,8 +480,7 @@ class Canvas extends React.Component<CanvasProps, CanvasState> {
             className="page-wrapper"
             style={style}
           >
-            {/* width={viewport.width} height={viewport.height} */}
-            <canvas ref={page.canvasRef}></canvas>
+            <canvas ref={page.canvasRef} style={{width: style.width, height:style.height}}></canvas>
           </div>
         </>
       );
@@ -486,9 +492,9 @@ class Canvas extends React.Component<CanvasProps, CanvasState> {
             id={`page-${page.pageNumber}`} 
             className="page-wrapper"
             style={{
-              height: DEFAULT_HEIGHT * this.state.scale, 
-              width: DEFAULT_WIDTH * this.state.scale,
-              marginBottom: PAGE_SPACE * this.state.scale,
+              height: Math.floor(this.state.defaultViewport.height * this.state.scale) + 'px', 
+              width: Math.floor(this.state.defaultViewport.width * this.state.scale) + 'px',
+              marginBottom: Math.floor(PAGE_SPACE * this.state.scale) + 'px',
             }}
           ></div>
         </>
@@ -508,7 +514,7 @@ class Canvas extends React.Component<CanvasProps, CanvasState> {
 
   adjustScaleAndPosition = () => {
     const width = this.canvasRef.current.offsetWidth;
-    const newScale = (width * INTIAL_PAGE_SCALE) / INITIAL_RENDER_WIDTH;
+    const newScale = (width * INITIAL_PAGE_SCALE) / INITIAL_RENDER_WIDTH;
 
     this.scaleBounds = {
       high: newScale + newScale * 0.8,
@@ -532,7 +538,7 @@ class Canvas extends React.Component<CanvasProps, CanvasState> {
     });
   }
 
-  keyDownHandler = (e) => {
+  keyDownHandler = (e: any) => {
     if (e.keyCode === 32) { 
       //Spacebar
       trigger('CANVAS_LOCKED', { locked: true });
@@ -542,7 +548,7 @@ class Canvas extends React.Component<CanvasProps, CanvasState> {
     }
   };
 
-  keyUpHandler = (e) => {
+  keyUpHandler = (e: any) => {
     if (e.keyCode === 32) {
       //Spacebar
       trigger('CANVAS_LOCKED', { locked: false });
@@ -554,13 +560,13 @@ class Canvas extends React.Component<CanvasProps, CanvasState> {
     }
   };
 
-  scrollHandler = (e) => {
+  scrollHandler = (e: any) => {
     if (!this.state.mouseIn) return;
     if (!this.state.spacePressed) {
       const pos = this.state.pos;
       this.setState({
         pos: {
-          x: pos.x + e.wheelDeltaX,
+          x: pos.x,
           y: pos.y + e.wheelDeltaY
         }
       });
@@ -570,19 +576,13 @@ class Canvas extends React.Component<CanvasProps, CanvasState> {
 
       //Percent change
       const percentChange: number = (newScale - this.state.scale) / this.state.scale;
-      console.log(this.state.pos);
       
       //Get difference in mouse and document positions
 
       const diffPos: Point = {
-        x: (this.state.pos.x - this.mousePos.x) * percentChange,
+        x: (this.state.pos.x - window.innerWidth/2) * percentChange,
         y: (this.state.pos.y - 400) * percentChange
       };
-
-      console.log({
-        x: this.state.pos.x + diffPos.x,
-        y: this.state.pos.y + diffPos.y
-      });
 
       this.setState({
         scale: newScale,
@@ -594,7 +594,7 @@ class Canvas extends React.Component<CanvasProps, CanvasState> {
     }
   };
 
-  onMouseDown = (e) => {
+  onMouseDown = (e: any) => {
     if (!this.state.mouseIn) return;
     if (e.button !== 0) return;
     if (!this.state.spacePressed) return;
@@ -612,7 +612,7 @@ class Canvas extends React.Component<CanvasProps, CanvasState> {
     e.preventDefault();
   };
 
-  onMouseUp = (e) => {
+  onMouseUp = (e: any) => {
     if (!this.state.mouseIn) return;
     if (!this.state.spacePressed) return;
     this.setState({ dragging: false });
@@ -620,7 +620,7 @@ class Canvas extends React.Component<CanvasProps, CanvasState> {
     e.preventDefault();
   };
 
-  onMouseMove = (e) => {
+  onMouseMove = (e: any) => {
     this.mousePos.x = e.pageX;
     this.mousePos.y = e.pageY;
     if (!this.state.dragging) return;

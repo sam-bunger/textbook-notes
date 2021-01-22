@@ -8,3 +8,4 @@ tsconfig.json
 /static/text2.pdf
 .prettierrc.json
 .DS_Store
+.vscode
