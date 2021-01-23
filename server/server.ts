@@ -65,7 +65,7 @@ app.prepare().then(() => {
 
   server.get('/api/getNotes', async (req: any, res: any) => {
     res.send({
-      document: 'http://localhost/static/text2.pdf',
+      document: 'http://localhost/static/text.pdf',
       currentPage: 1,
       projectName: 'Operating Systems',
       categories: [],
@@ -84,6 +84,6 @@ app.prepare().then(() => {
 
   /*** LISTEN ***/
   server.listen(config.port, () => {
-    console.info(`Texbook frontend is listening on ${config.port}`);
+    console.info(`Textbook frontend is listening on ${config.port}`);
   });
 });

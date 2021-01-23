@@ -13,7 +13,7 @@ const INITIAL_RENDER_WIDTH = 1300;
 const INITIAL_PAGE_SCALE = 1;
 const DEFAULT_HEIGHT = 1400;
 const DEFAULT_WIDTH = 800;
-const MAX_LOADED = 10;
+const MAX_LOADED = 50;
 const PAGE_SPACE = 16;
 
 type ScanDirection = 'NONE' | 'UP' | 'DOWN';
@@ -26,7 +26,7 @@ interface Viewport {
 interface BasePage {
   pageNumber: number;
   divRef: React.RefObject<any>;
-  canvasRef: React.RefObject<any>;
+  canvas?: any;
 }
 
 interface LoadedPage extends BasePage {
@@ -287,6 +287,8 @@ class Canvas extends React.Component<CanvasProps, CanvasState> {
 
     if (this.renderedList.includes(index)) return isDone();
 
+    this.updateLoadedQueue(index);
+
     if (page.loaded) {
       this.queueForRender(index);
       isDone();
@@ -333,18 +335,12 @@ class Canvas extends React.Component<CanvasProps, CanvasState> {
     const index = this.renderQueue[0];
     const page = this.state.pages[index];
 
-    if (!page.loaded) throw new Error('Page has not yet loaded!'); 
-
-    if (!page.canvasRef.current) {
-      window.requestAnimationFrame(() => {
-        this.renderPages(done);
-      });
-      return;
-    }
+    if (!page.loaded) throw new Error('Page has yet to load!');
 
     const viewport = page.page.getViewport({ scale: this.state.scale * CSS_UNITS });
-    const canvas = page.canvasRef.current;
+    const canvas = document.createElement('canvas');
     canvas.setAttribute('hidden', 'hidden');
+    page.divRef.current.appendChild(canvas);
     
     let isCanvasHidden = true;
     const showCanvas = function () {
@@ -380,6 +376,8 @@ class Canvas extends React.Component<CanvasProps, CanvasState> {
     .then(() => {
       this.currentRenderTask = undefined;
       showCanvas();
+      if (page.canvas) page.canvas.remove();
+      page.canvas = canvas;
       this.renderedList.push(this.renderQueue.shift());
 
       if (this.renderQueue.length == 0) {
@@ -393,6 +391,8 @@ class Canvas extends React.Component<CanvasProps, CanvasState> {
     .catch(error => {
       this.currentRenderTask = undefined;
       this.isRendering = false;
+      if (page.canvas) page.canvas.remove();
+      page.canvas = undefined;
       done();
     }); 
   }
@@ -407,27 +407,33 @@ class Canvas extends React.Component<CanvasProps, CanvasState> {
 
       currentPage.loaded = true;
       currentPage.page = page;
-      
-      //Add new page to queue
-      const queueIndex = this.loadedQueue.indexOf(index);
-      if (queueIndex > -1) {
-        this.loadedQueue.slice(queueIndex);
-        this.loadedQueue.push(index);
-      }
-
-      //Remove from queue if too many loaded pages
-      if (this.loadedQueue.length > MAX_LOADED) {
-        const removeIndex = this.loadedQueue.shift();
-
-        const page: LoadedPage = this.state.pages[removeIndex] as LoadedPage;
-        delete page.page;
-
-        const pageSetLoadedFalse = this.state.pages[removeIndex];
-        pageSetLoadedFalse.loaded = false;
-      }
 
       cb();
     });
+  }
+
+  updateLoadedQueue = (index: number) => {
+    //Add new page to queue
+    const queueIndex = this.loadedQueue.indexOf(index);
+    if (queueIndex > -1) {
+      //Already in array... remove it
+      this.loadedQueue.splice(queueIndex, 1);
+    } else if (this.loadedQueue.length > MAX_LOADED) {
+      //Array is full... need to remove a different element
+      const removeIndex = this.loadedQueue.shift();
+
+      //Delete element's canvas
+      const pageToRemove = this.state.pages[removeIndex];
+      if (pageToRemove.canvas) pageToRemove.canvas.remove();
+      pageToRemove.canvas = undefined;
+
+      //Remove element from rendered list
+      const renderedListIndex = this.renderedList.indexOf(removeIndex);
+      if (renderedListIndex > -1) {
+        this.renderedList.splice(renderedListIndex, 1);
+      }
+    }
+    this.loadedQueue.push(index);
   }
 
   isViewable = (pageRef: React.RefObject<any>) => {
@@ -459,7 +465,6 @@ class Canvas extends React.Component<CanvasProps, CanvasState> {
         this.state.pages.push({
           pageNumber: i,
           divRef: React.createRef(),
-          canvasRef: React.createRef(),
           loaded: false        
         });
       }
@@ -476,47 +481,11 @@ class Canvas extends React.Component<CanvasProps, CanvasState> {
         pages: this.state.pages,
         pdf
       });
+    }).catch((error) => {
+      console.log(error);
+      console.log('poggers');
     });
   };
-
-  buildPageDOM = (page: Page) => {
-    if (page.loaded) {
-      const viewport = page.page.getViewport({ scale: this.state.scale * CSS_UNITS });
-      const style = {
-        height: Math.floor(viewport.height) + 'px',
-        width: Math.floor(viewport.width) + 'px',
-        marginBottom: Math.floor(PAGE_SPACE * this.state.scale) + 'px'
-      };
-
-      return (
-        <>
-          <div
-            ref={page.divRef}
-            id={`page-${page.pageNumber}`} 
-            className="page-wrapper"
-            style={style}
-          >
-            <canvas ref={page.canvasRef} style={{width: style.width, height:style.height}}></canvas>
-          </div>
-        </>
-      );
-    } else {
-      return (
-        <>
-          <div
-            ref={page.divRef}
-            id={`page-${page.pageNumber}`} 
-            className="page-wrapper"
-            style={{
-              height: Math.floor(this.state.defaultViewport.height * this.state.scale) + 'px', 
-              width: Math.floor(this.state.defaultViewport.width * this.state.scale) + 'px',
-              marginBottom: Math.floor(PAGE_SPACE * this.state.scale) + 'px',
-            }}
-          ></div>
-        </>
-      );
-    }
-  }
 
   /* Handle Global Events */
 
@@ -669,6 +638,49 @@ class Canvas extends React.Component<CanvasProps, CanvasState> {
     );
     this.state.lm.createReference(convertedRect, text);
   };
+
+  buildPageDOM = (page: Page) => {
+    if (page.loaded) {
+      const viewport = page.page.getViewport({ scale: this.state.scale * CSS_UNITS });
+
+      const style = {
+        height: viewport.height + 'px',
+        width: viewport.width + 'px',
+        marginBottom: PAGE_SPACE * this.state.scale + 'px'
+      };
+      if (page.canvas) {
+        page.canvas.style.height = style.height;
+        page.canvas.style.width = style.width;
+      }
+
+      return (
+        <>
+          <div
+            ref={page.divRef}
+            id={`page-${page.pageNumber}`} 
+            className="page-wrapper"
+            style={style}
+          >
+          </div>
+        </>
+      );
+    } else {
+      return (
+        <>
+          <div
+            ref={page.divRef}
+            id={`page-${page.pageNumber}`} 
+            className="page-wrapper"
+            style={{
+              height: this.state.defaultViewport.height * this.state.scale + 'px', 
+              width: this.state.defaultViewport.width * this.state.scale + 'px',
+              marginBottom: PAGE_SPACE * this.state.scale + 'px',
+            }}
+          ></div>
+        </>
+      );
+    }
+  }
 
   render() {
     const items = [];
