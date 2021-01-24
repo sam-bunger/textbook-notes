@@ -66,7 +66,7 @@ app.prepare().then(() => {
     /*** WEB CONTENT ***/
     server.get('/api/getNotes', (req, res) => __awaiter(void 0, void 0, void 0, function* () {
         res.send({
-            document: 'http://localhost/static/text.pdf',
+            document: 'http://localhost/static/text4.pdf',
             currentPage: 1,
             projectName: 'Operating Systems',
             categories: [],
@@ -79,7 +79,7 @@ app.prepare().then(() => {
     server.get('*', (req, res) => __awaiter(void 0, void 0, void 0, function* () { return res.send(yield app.renderToHTML(req, res, '/404', req.query)); }));
     /*** LISTEN ***/
     server.listen(config.port, () => {
-        console.info(`Texbook frontend is listening on ${config.port}`);
+        console.info(`Textbook frontend is listening on ${config.port}`);
     });
 });
 //# sourceMappingURL=server.js.map

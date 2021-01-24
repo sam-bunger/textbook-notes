@@ -3,6 +3,7 @@ import { Point } from '../types';
 
 export type EditorState = {
   currentPage: number;
+  externalPageUpdate: boolean;
   totalPages: number;
   canvasIsLocked: boolean;
   navRetracted: boolean;

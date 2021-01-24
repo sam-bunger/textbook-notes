@@ -10,7 +10,9 @@ interface NavigateProps {
   retracted: boolean;
 }
 
-interface NavigateState {}
+interface NavigateState {
+  isBlank: boolean;
+}
 
 class Navigate extends React.Component<
   NavigateProps,
@@ -20,17 +22,29 @@ class Navigate extends React.Component<
 
   constructor(props: NavigateProps) {
     super(props);
-    this.state = {};
+    this.state = {
+      isBlank: false
+    };
   }
 
   componentDidMount = () => {};
 
   pageHandler = (page) => {
-    if (page < 1 || page > this.context.totalPages) return;
+    if (page < 0 || page > this.context.totalPages) return;
     this.context.setContext({
       currentPage: page
     });
   };
+
+  pageInputHandler = (e) => {
+    const page = parseInt(e.target.value);
+    console.log(page);
+    if (isNaN(page)) {
+      return this.setState({ isBlank: true });
+    }
+    this.setState({ isBlank: false });
+    this.pageHandler(page - 1);
+  }
 
   render() {
     const content = this.context.navRetracted ? (
@@ -47,8 +61,8 @@ class Navigate extends React.Component<
           <div className="navigate-pager-item">
             <TextField
               className="thin-textfield"
-              onChange={(e) => this.pageHandler(parseInt(e.target.value))}
-              value={this.context.currentPage + 1}
+              onChange={this.pageInputHandler}
+              value={this.state.isBlank ? '' : this.context.currentPage + 1}
               type={'number'}
             />
           </div>

@@ -1,12 +1,18 @@
 import React from 'react';
 import Head from '../components/Head';
-import Canvas from '../components/editor/canvas/Canvas';
+import PDFViewer from '../components/editor/viewer/PDFViewer';
 import Nav from '../components/nav/Nav';
 import { listener, trigger } from '../components/globalEvents/events';
 import { getNotes } from '../components/networkAPI/network';
 import EditorNav from '../components/editor/editorNav/editorNav';
 import { NoteStorage } from '../components/editor/NoteStorage';
 import { EditorContext, EditorState } from '../components/editor/EditorContext';
+
+declare global{
+  interface Window {
+    pdfjsLib: any
+  }
+}
 
 export default class Editor extends React.Component<{}, EditorState> {
   state: EditorState;
@@ -15,6 +21,7 @@ export default class Editor extends React.Component<{}, EditorState> {
     super({});
     this.state = {
       currentPage: 0,
+      externalPageUpdate: false,
       totalPages: 0,
       canvasIsLocked: false,
       navRetracted: false,
@@ -24,6 +31,10 @@ export default class Editor extends React.Component<{}, EditorState> {
 
   setContext = (context: Partial<EditorState> | {}, cb?: () => void): void => {
     this.setState(context as EditorState , cb);
+  }
+
+  componentDidUpdate = (props: {}, state: EditorState) => {
+    
   }
 
   componentDidMount = () => {
@@ -47,7 +58,7 @@ export default class Editor extends React.Component<{}, EditorState> {
           <Nav />
           <EditorNav />
           <div>
-            <Canvas />
+            <PDFViewer />
           </div>
         </EditorContext.Provider>
       </>
