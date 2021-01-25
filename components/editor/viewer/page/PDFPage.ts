@@ -112,7 +112,7 @@ export class PDFPage {
   cleanup = () => {
     //Cleanup canvas
     if (this.canvas) this.canvas.remove();
-    this.canvas = undefined;
+    // this.canvas = undefined;
 
     //Cleanup HTML
     this.textRef.current.innerHTML = '';

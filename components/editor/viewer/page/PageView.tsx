@@ -6,38 +6,59 @@ import { PDFPage } from './PDFPage';
 interface PageViewProps {
   defaultViewport: StoredViewport;
   scale: number;
-  page: PDFPage
+  pageNumber: number;
+  pdf: any;
+  loaded: boolean;
 }
 
-export class PageView extends React.Component<PageViewProps, {}> {
+interface PageViewState {
+  divRef: React.RefObject<any>;
+  textRef: React.RefObject<any>;
+  canvas?: any;
+  page?: any;
+  textContent?: any;
+}
+
+export class PageView extends React.Component<PageViewProps, PageViewState> {
+  public state: PageViewState;
+  public canvas?: any;
 
   constructor(props: PageViewProps) {
     super(props);
+    this.state = {
+      divRef: React.createRef(),
+      textRef: React.createRef(),
+      canvas: undefined,
+      page: undefined,
+      textContent: undefined
+    };
   }
 
   render = () => {
-    if (this.props.page.loaded) {
-      const viewport = this.props.page.page.getViewport({ scale: this.props.scale * CSS_UNITS });
+    if (this.props.loaded) {
+      const viewport = this.state.page.page.getViewport({
+        scale: this.props.scale * CSS_UNITS
+      });
 
       const style = {
         height: viewport.height + 'px',
         width: viewport.width + 'px',
         marginBottom: PAGE_SPACE * this.props.scale + 'px'
       };
-      if (this.props.page.canvas) {
-        this.props.page.canvas.style.height = style.height;
-        this.props.page.canvas.style.width = style.width;
+      if (this.canvas) {
+        this.canvas.style.height = style.height;
+        this.canvas.style.width = style.width;
       }
 
       return (
         <>
           <div
-            ref={this.props.page.divRef}
-            id={`page-${this.props.page.pageNumber}`} 
-            className='page-wrapper'
+            ref={this.state.divRef}
+            id={`page-${this.props.pageNumber}`}
+            className="page-wrapper"
             style={style}
           >
-            <div ref={this.props.page.textRef} className='textLayer'></div>
+            <div ref={this.state.textRef} className="textLayer"></div>
           </div>
         </>
       );
@@ -45,17 +66,17 @@ export class PageView extends React.Component<PageViewProps, {}> {
       return (
         <>
           <div
-            ref={this.props.page.divRef}
-            id={`page-${this.props.page.pageNumber}`} 
+            ref={this.state.divRef}
+            id={`page-${this.props.pageNumber}`}
             className="page-wrapper"
             style={{
-              height: this.props.defaultViewport.height * this.props.scale + 'px', 
+              height: this.props.defaultViewport.height * this.props.scale + 'px',
               width: this.props.defaultViewport.width * this.props.scale + 'px',
-              marginBottom: PAGE_SPACE * this.props.scale + 'px',
+              marginBottom: PAGE_SPACE * this.props.scale + 'px'
             }}
           ></div>
         </>
       );
     }
-  }
+  };
 }
