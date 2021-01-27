@@ -66,7 +66,7 @@ app.prepare().then(() => {
     /*** WEB CONTENT ***/
     server.get('/api/getNotes', (req, res) => __awaiter(void 0, void 0, void 0, function* () {
         res.send({
-            document: 'http://localhost/static/text3.pdf',
+            document: 'http://localhost/static/text2.pdf',
             currentPage: 1,
             projectName: 'Operating Systems',
             categories: [],
