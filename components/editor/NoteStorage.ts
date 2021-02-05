@@ -1,18 +1,23 @@
 import { Rect } from '../types';
 
-export type NoteStorage = {
-  document: string;
-  projectName: string;
-  currentPage: number;
-  categories: Hierarchy[];
-  links: Record<string, Link>;
-  pages: Record<number, Page>;
-};
+export interface NoteStorage {
+  info: {
+    document: string;
+    projectName: string;
+    currentPage: number;
+  };
+  data: {
+    categories: Hierarchy[];
+    notes: Record<string, Note>;
+    pages: Record<number, Page>;
+  };
+}
 
 export type HierarchyId = string;
-export type NoteId = string;
+// export type NoteId = string;
 export type LinkId = string;
 export type ReferenceId = string;
+export type DefinitionId = string;
 
 export type Hierarchy = {
   id: HierarchyId;
@@ -21,21 +26,31 @@ export type Hierarchy = {
 };
 
 export type Page = {
-  notes: Record<string, Note>;
   references: Record<string, Reference>;
+  definitions: Record<string, Definition>;
 };
 
-export type Link = {
-  id: LinkId;
-  portA: {
-    type: 'note' | 'reference';
-    id: NoteId | ReferenceId;
-  };
-  portB: {
-    type: 'note' | 'reference';
-    id: NoteId | ReferenceId;
-  };
-};
+// export type Link = {
+//   id: LinkId;
+//   portA: {
+//     type: 'note' | 'reference';
+//     id: NoteId | ReferenceId;
+//   };
+//   portB: {
+//     type: 'note' | 'reference';
+//     id: NoteId | ReferenceId;
+//   };
+// };
+
+export type Location = {
+  spanOffset: number;
+  letterOffset: number;
+}
+
+export type TextLocation = {
+  start: Location;
+  end: Location;
+}
 
 export type Note = {
   id: NoteId;
@@ -45,9 +60,16 @@ export type Note = {
   links: LinkId[];
 };
 
+export type Definition = {
+  id: DefinitionId;
+  category: HierarchyId[];
+  def: string;
+  word: string;
+  location: TextLocation;
+}
+
 export type Reference = {
   id: ReferenceId;
   text: string;
-  bounds: Rect;
-  links: LinkId[];
+  location: TextLocation;
 };

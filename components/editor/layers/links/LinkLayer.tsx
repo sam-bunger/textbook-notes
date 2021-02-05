@@ -1,10 +1,10 @@
 import React from 'react';
-import { LayerManager } from '../LayerManager';
+import { NotesManager } from '../NotesManager';
 import { LinkId } from '../../NoteStorage';
 import Link from './Link';
 
 interface LinkLayerProps {
-  lm: LayerManager;
+  lm: NotesManager;
   width: number;
   height: number;
 }

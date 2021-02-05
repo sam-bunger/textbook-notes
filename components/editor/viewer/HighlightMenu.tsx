@@ -3,18 +3,27 @@ import { listener, trigger } from '../../globalEvents/events';
 import { Point } from '../../types';
 import BorderColorIcon from '@material-ui/icons/BorderColor';
 
-type CreateReference = (boundingRect: DOMRect, text: string) => void;
+type CreateReference = (reference: ReferenceRange, text: string) => void;
 
 interface HighlightMenuProps {
   createReference: CreateReference;
 }
 
+export type ReferenceEnd = {
+  page: number;
+  spanOffset: number;
+  letterOffset: number;
+};
+
+export type ReferenceRange = {
+  start: ReferenceEnd
+  end: ReferenceEnd
+}
+
 interface HighlightMenuState {
   locked: boolean;
-  highlightMenu: {
-    pos: Point;
-    visible: boolean;
-  };
+  pos: Point;
+  visible: boolean;
 }
 
 export default class HighlightMenu extends React.Component<
@@ -22,21 +31,17 @@ export default class HighlightMenu extends React.Component<
   HighlightMenuState
 > {
   state: HighlightMenuState;
-  currentRect: DOMRect;
-  currentText: string;
+  currentText?: string;
+  currentReference?: ReferenceRange
   createReference: CreateReference;
 
   constructor(props: HighlightMenuProps) {
     super(props);
     this.state = {
       locked: false,
-      highlightMenu: {
-        pos: { x: 0, y: 0 },
-        visible: false
-      }
+      pos: { x: 0, y: 0 },
+      visible: false
     };
-    this.currentRect = null;
-    this.currentText = null;
     this.createReference = props.createReference;
   }
 
@@ -54,10 +59,8 @@ export default class HighlightMenu extends React.Component<
   updateLocked = ({ locked }) => {
     if (locked) {
       this.setState({
-        highlightMenu: {
-          pos: { x: 0, y: 0 },
-          visible: false
-        }
+        pos: { x: 0, y: 0 },
+        visible: false
       });
     }
     this.setState({ locked });
@@ -65,10 +68,8 @@ export default class HighlightMenu extends React.Component<
 
   onScroll = (e) => {
     this.setState({
-      highlightMenu: {
-        pos: { x: 0, y: 0 },
-        visible: false
-      }
+      pos: { x: 0, y: 0 },
+      visible: false
     });
     e.stopPropagation();
     e.preventDefault();
@@ -78,33 +79,41 @@ export default class HighlightMenu extends React.Component<
     if (this.state.locked) return;
     const select = document.getSelection();
     if (select.type == 'Range') {
-      const r = select.getRangeAt(0).getBoundingClientRect();
+      const range = select.getRangeAt(0);
+      const rect = range.getBoundingClientRect();
+      const startSplit = range.startContainer.parentElement.id.split('-');
+      const endSplit = range.endContainer.parentElement.id.split('-');
       this.setState({
-        highlightMenu: {
-          pos: { x: r.x + r.width + 10, y: r.y - 110 },
-          visible: true
-        }
+        pos: { x: rect.x + rect.width + 10, y: rect.y - 110 },
+        visible: true,
       });
-      this.currentRect = r;
+      this.currentReference = {
+        start: {
+          page: parseInt(startSplit[0]),
+          spanOffset: parseInt(startSplit[1]),
+          letterOffset: range.startOffset
+        },
+        end: {
+          page: parseInt(endSplit[0]),
+          spanOffset: parseInt(endSplit[1]),
+          letterOffset: range.endOffset
+        }
+      };
       this.currentText = select.toString();
     } else {
       this.setState({
-        highlightMenu: {
-          pos: { x: 0, y: 0 },
-          visible: false
-        }
+        pos: { x: 0, y: 0 },
+        visible: false,
       });
     }
   };
 
   handleClick = () => {
-    if (!this.currentRect || !this.currentText) return;
-    this.createReference(this.currentRect, this.currentText);
+    if (!this.currentReference || !this.currentText) return;
+    this.createReference(this.currentReference, this.currentText);
     this.setState({
-      highlightMenu: {
-        pos: { x: 0, y: 0 },
-        visible: false
-      }
+      pos: { x: 0, y: 0 },
+      visible: false
     });
   };
 
@@ -115,8 +124,8 @@ export default class HighlightMenu extends React.Component<
           id="highlight-menu"
           className="highlight-menu"
           style={{
-            display: this.state.highlightMenu.visible ? 'block' : 'none',
-            transform: `translate(${this.state.highlightMenu.pos.x}px, ${this.state.highlightMenu.pos.y}px)`
+            display: this.state.visible ? 'block' : 'none',
+            transform: `translate(${this.state.pos.x}px, ${this.state.pos.y}px)`
           }}
           onClick={this.handleClick}
         >

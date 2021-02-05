@@ -1,8 +1,7 @@
 import React from 'react';
-import { Point } from '../types';
+import { NoteStorage } from './NoteStorage';
 
-export type EditorState = {
-  currentPage: number;
+export interface EditorState extends Partial<NoteStorage['info']>{
   externalPageUpdate: boolean;
   totalPages: number;
   canvasIsLocked: boolean;
@@ -11,7 +10,6 @@ export type EditorState = {
 }
 
 export const defaultVaules = {
-  currentPage: 0,
   totalPages: 0,
   canvasIsLocked: false,
   navRetracted: false

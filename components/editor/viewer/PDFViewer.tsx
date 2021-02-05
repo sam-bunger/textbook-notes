@@ -1,21 +1,28 @@
 import React from 'react';
 import _ from 'lodash';
 import { Point, Bound } from '../../types';
-import { listener } from '../../globalEvents/events';
 import { DEFAULT_HEIGHT, DEFAULT_WIDTH, INITIAL_PAGE_SCALE, INITIAL_RENDER_WIDTH, MAX_LOADED, PAGE_SPACE } from '../utils';
-import { NoteStorage } from '../NoteStorage';
-import { LayerManager } from '../layers/LayerManager';
-import { EditorContext } from '../EditorContext';
+import { NotesManager } from '../layers/NotesManager';
+import { EditorContext, EditorState } from '../EditorContext';
 import { CSS_UNITS } from '../utils';
 import { StoredViewport } from './types';
 import { PageView, RenderCanvas } from './page/PageView';
+import HighlightMenu from './HighlightMenu';
+
+declare global{
+  interface Window {
+    pdfjsLib: any
+  }
+}
 
 export type RenderQueueItem = {
   pageNumber: number;
   renderCanvas: RenderCanvas
 }
 
-interface PDFViewerProps {}
+interface PDFViewerProps {
+  nm?: NotesManager
+}
 
 interface PDFViewerState {
   dragging: boolean;
@@ -23,8 +30,6 @@ interface PDFViewerState {
   mouseIn: boolean;
   scale: number;
   pageWidth: number | null;
-  file: string;
-  lm: LayerManager | null;
   pos: Point;
   rel: Point;
   pdf: any | null;
@@ -34,7 +39,7 @@ interface PDFViewerState {
   defaultViewport: StoredViewport;
 }
 
-class PDFViewer extends React.Component<PDFViewerProps, PDFViewerState> {
+class PDFViewer extends React.PureComponent<PDFViewerProps, PDFViewerState> {
   state: PDFViewerState;
   mousePos: Point;
   scaleBounds: Bound;
@@ -49,6 +54,8 @@ class PDFViewer extends React.Component<PDFViewerProps, PDFViewerState> {
   renderTask?: any;
   renderTextTask?: any;
   prevPage: number;
+  lastDocument: string;
+  context: EditorState;
   throttleSetPageWidth: () => void;
   throttleRenderLock: () => void;
   throttleUpdate: () => void;
@@ -63,9 +70,7 @@ class PDFViewer extends React.Component<PDFViewerProps, PDFViewerState> {
       spacePressed: false,
       scale: 1,
       pageWidth: null,
-      file: null,
       mouseIn: true,
-      lm: null,
       pos: {
         x: 0,
         y: 0
@@ -123,10 +128,6 @@ class PDFViewer extends React.Component<PDFViewerProps, PDFViewerState> {
     document.addEventListener('resize', this.throttleSetPageWidth);
     document.addEventListener('mousemove', this.onMouseMove);
     document.addEventListener('mouseup', this.onMouseUp);
-
-    /* Set listeners */
-    listener('LOAD_NOTES', this.loadNotes);
-
     window.pdfjsLib.GlobalWorkerOptions.workerSrc = `http://${window.location.hostname}/pdfjs/worker`;
     this.pdfjsLib = window.pdfjsLib;
     this.documentSetup();
@@ -138,7 +139,8 @@ class PDFViewer extends React.Component<PDFViewerProps, PDFViewerState> {
       this.throttleUpdate();
     }
 
-    if (this.state.file !== state.file) {
+    if (this.context.document && this.context.document !== this.lastDocument) {
+      this.lastDocument = this.context.document;
       this.documentSetup();
     }
 
@@ -383,8 +385,8 @@ class PDFViewer extends React.Component<PDFViewerProps, PDFViewerState> {
   }
 
   documentSetup = () => {
-    if (!this.state.file) return;
-    const loadingTask = this.pdfjsLib.getDocument(this.state.file);
+    if (!this.context.document) return;
+    const loadingTask = this.pdfjsLib.getDocument(this.context.document);
     loadingTask.promise.then((pdf) => {
 
       pdf.getMetadata().then((data) => {
@@ -425,13 +427,6 @@ class PDFViewer extends React.Component<PDFViewerProps, PDFViewerState> {
     });
   };
 
-  /* Handle Global Events */
-
-  loadNotes = (notesData: NoteStorage) => {
-    console.log('UPDATE: ', notesData.document);
-    this.setState({ file: notesData.document });
-    this.setState({ lm: new LayerManager(notesData) });
-  };
 
   /* Handle Scale */
 
@@ -651,7 +646,7 @@ class PDFViewer extends React.Component<PDFViewerProps, PDFViewerState> {
           style={{ cursor }}
           ref={this.pageRef}
         >
-          {/* <HighlightMenu createReference={this.createReference} /> */}
+          {this.props.nm ? <HighlightMenu createReference={this.props.nm.createReference}/> : null}
           <div className="document-layer" style={positionWithoutScale}>
             <div className="pdfViewer">
               {items}

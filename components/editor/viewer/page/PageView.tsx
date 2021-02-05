@@ -3,6 +3,7 @@ import _ from 'lodash';
 
 import { approximateFraction, CSS_UNITS, getOutputScale, PAGE_SPACE, roundToDivide } from '../../utils';
 import { StoredViewport, Viewport } from '../types';
+import { PageManager } from './PageManager';
 
 export interface RenderTasks {
   renderTask: Promise<any>,
@@ -19,6 +20,7 @@ interface PageViewProps {
   pageNumber: number;
   pdf: any;
   isViewable: boolean;
+  pm: PageManager,
   adjustPageHeight: (pageNumber: number) => void
   addToRenderQueue: RenderEnqueue;
 }
@@ -34,6 +36,7 @@ export class PageView extends React.PureComponent<PageViewProps, PageViewState> 
   public inRenderQueue: boolean;
   public alreadyRendered: boolean;
   public textRef: React.RefObject<any>;
+  public textDivs: any[];
   public throttlePageLoad: () => void;
 
   constructor(props: PageViewProps) {
@@ -96,8 +99,6 @@ export class PageView extends React.PureComponent<PageViewProps, PageViewState> 
     
     const render = (scale: number, done: (error?: any) => void) => {
 
-      // console.log('initiating render for page ', this.props.pageNumber);
-
       if (this.textRef.current) this.textRef.current.innerHTML = '';
 
       const viewport = this.state.page.getViewport({ scale: this.props.scale * CSS_UNITS });
@@ -153,6 +154,7 @@ export class PageView extends React.PureComponent<PageViewProps, PageViewState> 
           renderTextTask.promise.then(() => {
             this.alreadyRendered = true;
             doneWrapper();
+            this.manageTextLayer();
           }).catch((error) => {
             console.log('rendering cancel');
             canvas.remove();
@@ -182,12 +184,23 @@ export class PageView extends React.PureComponent<PageViewProps, PageViewState> 
   
   rasterizeTextLayer = (viewport: Viewport): any | undefined => {
     if (!this.textRef.current) return;
+    this.textDivs = [];
     return window.pdfjsLib.renderTextLayer({
       textContent: this.state.textContent,
       container: this.textRef.current,
       viewport,
+      textDivs: this.textDivs,
       enhanceTextSelection: true,
     });
+  }
+
+  manageTextLayer = () => {
+    if (!this.textDivs) return;
+    let index = 0;
+    for (const div of this.textDivs) {
+      div.id = `${this.props.pageNumber}-${index}`;
+      index++;
+    }
   }
 
   render = () => {

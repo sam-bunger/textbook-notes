@@ -1,10 +1,10 @@
 import React from 'react';
-import { LayerManager } from '../LayerManager';
+import { NotesManager } from '../NotesManager';
 import { ReferenceId } from '../../NoteStorage';
 import Reference from './Reference';
 
 interface ReferenceLayerProps {
-  lm: LayerManager;
+  lm: NotesManager;
 }
 
 type ReferenceLayerState = {
