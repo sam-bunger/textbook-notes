@@ -2,22 +2,12 @@ import React from 'react';
 import { listener, trigger } from '../../globalEvents/events';
 import { Point } from '../../types';
 import BorderColorIcon from '@material-ui/icons/BorderColor';
+import { TextLocation } from '../NoteStorage';
 
-type CreateReference = (reference: ReferenceRange, text: string) => void;
+type CreateReference = (location: TextLocation, text: string) => void;
 
 interface HighlightMenuProps {
   createReference: CreateReference;
-}
-
-export type ReferenceEnd = {
-  page: number;
-  spanOffset: number;
-  letterOffset: number;
-};
-
-export type ReferenceRange = {
-  start: ReferenceEnd
-  end: ReferenceEnd
 }
 
 interface HighlightMenuState {
@@ -32,7 +22,8 @@ export default class HighlightMenu extends React.Component<
 > {
   state: HighlightMenuState;
   currentText?: string;
-  currentReference?: ReferenceRange
+  currentReference?: TextLocation;
+  currentSelection?: any;
   createReference: CreateReference;
 
   constructor(props: HighlightMenuProps) {
@@ -78,6 +69,7 @@ export default class HighlightMenu extends React.Component<
   onMouseUp = (e) => {
     if (this.state.locked) return;
     const select = document.getSelection();
+    this.currentSelection = select;
     if (select.type == 'Range') {
       const range = select.getRangeAt(0);
       const rect = range.getBoundingClientRect();
@@ -85,7 +77,7 @@ export default class HighlightMenu extends React.Component<
       const endSplit = range.endContainer.parentElement.id.split('-');
       this.setState({
         pos: { x: rect.x + rect.width + 10, y: rect.y - 110 },
-        visible: true,
+        visible: true
       });
       this.currentReference = {
         start: {
@@ -103,13 +95,14 @@ export default class HighlightMenu extends React.Component<
     } else {
       this.setState({
         pos: { x: 0, y: 0 },
-        visible: false,
+        visible: false
       });
     }
   };
 
   handleClick = () => {
-    if (!this.currentReference || !this.currentText) return;
+    if (!this.currentReference || !this.currentText || !this.currentSelection) return;
+    this.currentSelection.collapseToStart();
     this.createReference(this.currentReference, this.currentText);
     this.setState({
       pos: { x: 0, y: 0 },

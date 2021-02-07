@@ -9,40 +9,28 @@ export interface NoteStorage {
   data: {
     categories: Hierarchy[];
     notes: Record<string, Note>;
+    references: Record<string, Reference>;
+    definitions: Record<string, Definition>;
     pages: Record<number, Page>;
   };
 }
 
-export type HierarchyId = string;
-// export type NoteId = string;
-export type LinkId = string;
-export type ReferenceId = string;
-export type DefinitionId = string;
-
 export type Hierarchy = {
-  id: HierarchyId;
+  id: string;
   name: string;
   sub: Hierarchy[];
 };
 
-export type Page = {
-  references: Record<string, Reference>;
-  definitions: Record<string, Definition>;
-};
-
-// export type Link = {
-//   id: LinkId;
-//   portA: {
-//     type: 'note' | 'reference';
-//     id: NoteId | ReferenceId;
-//   };
-//   portB: {
-//     type: 'note' | 'reference';
-//     id: NoteId | ReferenceId;
-//   };
-// };
+export type Mark = Note | Definition | Reference;
+export type MarkType = 'REFERENCE' | 'DEFINITION' | 'NOTE';
+export type PageMark = {
+  type: MarkType;
+  id: string | string | string;
+}
+export type Page = PageMark[];
 
 export type Location = {
+  page: number;
   spanOffset: number;
   letterOffset: number;
 }
@@ -52,24 +40,26 @@ export type TextLocation = {
   end: Location;
 }
 
-export type Note = {
-  id: NoteId;
-  category: HierarchyId[];
+export interface MarkObject {
+  id: string;
+}
+
+export interface Note extends MarkObject {
+  category: string[];
   bounds: Rect;
   text: string;
-  links: LinkId[];
-};
+  reference?: string;
+}
 
-export type Definition = {
-  id: DefinitionId;
-  category: HierarchyId[];
+export interface Definition extends MarkObject {
+  category: string[];
   def: string;
   word: string;
   location: TextLocation;
 }
 
-export type Reference = {
-  id: ReferenceId;
+export interface Reference extends MarkObject {
   text: string;
   location: TextLocation;
-};
+  note?: string;
+}

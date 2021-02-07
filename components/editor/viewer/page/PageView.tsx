@@ -1,17 +1,23 @@
 import React from 'react';
 import _ from 'lodash';
 
-import { approximateFraction, CSS_UNITS, getOutputScale, PAGE_SPACE, roundToDivide } from '../../utils';
+import {
+  approximateFraction,
+  CSS_UNITS,
+  getOutputScale,
+  PAGE_SPACE,
+  roundToDivide
+} from '../../utils';
 import { StoredViewport, Viewport } from '../types';
 import { PageManager } from './PageManager';
 
 export interface RenderTasks {
-  renderTask: Promise<any>,
-  renderTextTask: Promise<any>
+  renderTask: Promise<any>;
+  renderTextTask: Promise<any>;
 }
 
-export type RenderCanvas = (scale: number, done: (error: any) => void) => RenderTasks
-export type RenderEnqueue = (pageNumber: number, renderCanvas: RenderCanvas) => void
+export type RenderCanvas = (scale: number, done: (error: any) => void) => RenderTasks;
+export type RenderEnqueue = (pageNumber: number, renderCanvas: RenderCanvas) => void;
 
 interface PageViewProps {
   defaultViewport: StoredViewport;
@@ -20,8 +26,8 @@ interface PageViewProps {
   pageNumber: number;
   pdf: any;
   isViewable: boolean;
-  pm: PageManager,
-  adjustPageHeight: (pageNumber: number) => void
+  pm: PageManager;
+  adjustPageHeight: (pageNumber: number) => void;
   addToRenderQueue: RenderEnqueue;
 }
 
@@ -45,8 +51,7 @@ export class PageView extends React.PureComponent<PageViewProps, PageViewState> 
       page: undefined,
       textContent: undefined
     };
-    this.textRef = React.createRef(),
-    this.inRenderQueue = false;
+    (this.textRef = React.createRef()), (this.inRenderQueue = false);
     this.alreadyRendered = false;
     this.throttlePageLoad = _.throttle(this.loadPage, 750);
   }
@@ -56,14 +61,11 @@ export class PageView extends React.PureComponent<PageViewProps, PageViewState> 
       this.alreadyRendered = false;
     }
 
-    if (
-      this.props.isViewable && 
-      !this.alreadyRendered
-    ) {
+    if (this.props.isViewable && !this.alreadyRendered) {
       this.alreadyRendered = true;
       this.throttlePageLoad();
     }
-  }
+  };
 
   loadPage = () => {
     if (this.state.page) {
@@ -71,41 +73,42 @@ export class PageView extends React.PureComponent<PageViewProps, PageViewState> 
       return;
     }
     if (!this.props.pdf) return;
-    this.props.pdf.getPage(this.props.pageNumber+1).then((page) => {
+    this.props.pdf.getPage(this.props.pageNumber + 1).then((page) => {
       page.getTextContent().then((textContent) => {
-        this.setState({
-          page,
-          textContent
-        }, () => {
-          this.props.adjustPageHeight(this.props.pageNumber);
-          this.addToQueueWrapper(this.getRenderCanvasFunction());
-        });
+        this.setState(
+          {
+            page,
+            textContent
+          },
+          () => {
+            this.props.adjustPageHeight(this.props.pageNumber);
+            this.addToQueueWrapper(this.getRenderCanvasFunction());
+          }
+        );
       });
     });
-  }
+  };
 
   addToQueueWrapper = (func?: RenderCanvas) => {
     if (func) {
       // this.inRenderQueue = true;
       this.props.addToRenderQueue(this.props.pageNumber, func);
     }
-  }
+  };
 
   getRenderCanvasFunction = () => {
-    if (
-      !this.state.page || 
-      !this.props.divRef.current
-    ) return;
-    
-    const render = (scale: number, done: (error?: any) => void) => {
+    if (!this.state.page || !this.props.divRef.current) return;
 
+    const render = (scale: number, done: (error?: any) => void) => {
       if (this.textRef.current) this.textRef.current.innerHTML = '';
 
-      const viewport = this.state.page.getViewport({ scale: this.props.scale * CSS_UNITS });
+      const viewport = this.state.page.getViewport({
+        scale: this.props.scale * CSS_UNITS
+      });
       const canvas = document.createElement('canvas');
       canvas.setAttribute('hidden', 'hidden');
       this.props.divRef.current.appendChild(canvas);
-  
+
       let isCanvasHidden = false;
       const showCanvas = () => {
         if (!isCanvasHidden) {
@@ -113,15 +116,15 @@ export class PageView extends React.PureComponent<PageViewProps, PageViewState> 
           isCanvasHidden = true;
         }
       };
-  
+
       const ctx = canvas.getContext('2d', { alpha: false });
       const outputScale = getOutputScale(ctx);
-   
+
       const sfx = approximateFraction(outputScale.sx);
       const sfy = approximateFraction(outputScale.sy);
       canvas.width = roundToDivide(viewport.width * outputScale.sx, sfx[0]);
       canvas.height = roundToDivide(viewport.height * outputScale.sy, sfy[0]);
-  
+
       // Rendering area
       const transform = !outputScale.scaled
         ? null
@@ -129,11 +132,11 @@ export class PageView extends React.PureComponent<PageViewProps, PageViewState> 
       const renderContext = {
         canvasContext: ctx,
         transform,
-        viewport: viewport,
+        viewport: viewport
       };
 
       const doneWrapper = (error?: any) => {
-        this.inRenderQueue =   false;
+        this.inRenderQueue = false;
         done(error);
       };
 
@@ -141,38 +144,42 @@ export class PageView extends React.PureComponent<PageViewProps, PageViewState> 
       const renderTextTask = this.rasterizeTextLayer(viewport);
 
       //Render canvas
-      renderTask.promise.then(() => {
-        if (this.canvas) {
-          this.canvas.setAttribute('hidden', 'hidden');
-          this.canvas.remove();
-        }
-        this.canvas = canvas;
-        this.render();
-        showCanvas();
+      renderTask.promise
+        .then(() => {
+          if (this.canvas) {
+            this.canvas.setAttribute('hidden', 'hidden');
+            this.canvas.remove();
+          }
+          this.canvas = canvas;
+          this.render();
+          showCanvas();
 
-        if (renderTextTask) {
-          renderTextTask.promise.then(() => {
-            this.alreadyRendered = true;
+          if (renderTextTask) {
+            renderTextTask.promise
+              .then(() => {
+                this.alreadyRendered = true;
+                doneWrapper();
+                this.manageTextLayer();
+                this.props.pm.setTextDivs(this.textDivs);
+                this.props.pm.paintTextOverlays();
+              })
+              .catch((error) => {
+                console.log('rendering cancel');
+                canvas.remove();
+                doneWrapper(error);
+                this.alreadyRendered = false;
+              });
+          } else {
             doneWrapper();
-            this.manageTextLayer();
-          }).catch((error) => {
-            console.log('rendering cancel');
-            canvas.remove();
-            doneWrapper(error);
-            this.alreadyRendered = false;
-          });
-        } else {
-          doneWrapper();
-        }
-
-      })
-      .catch(error => {
-        console.log('rendering cancel');
-        canvas.remove();
-        if (renderTextTask) renderTextTask.cancel();
-        this.alreadyRendered = false;
-        doneWrapper(error);
-      }); 
+          }
+        })
+        .catch((error) => {
+          console.log('rendering cancel');
+          canvas.remove();
+          if (renderTextTask) renderTextTask.cancel();
+          this.alreadyRendered = false;
+          doneWrapper(error);
+        });
 
       return {
         renderTask,
@@ -180,8 +187,8 @@ export class PageView extends React.PureComponent<PageViewProps, PageViewState> 
       };
     };
     return render;
-  }
-  
+  };
+
   rasterizeTextLayer = (viewport: Viewport): any | undefined => {
     if (!this.textRef.current) return;
     this.textDivs = [];
@@ -190,9 +197,9 @@ export class PageView extends React.PureComponent<PageViewProps, PageViewState> 
       container: this.textRef.current,
       viewport,
       textDivs: this.textDivs,
-      enhanceTextSelection: true,
+      enhanceTextSelection: true
     });
-  }
+  };
 
   manageTextLayer = () => {
     if (!this.textDivs) return;
@@ -201,7 +208,7 @@ export class PageView extends React.PureComponent<PageViewProps, PageViewState> 
       div.id = `${this.props.pageNumber}-${index}`;
       index++;
     }
-  }
+  };
 
   render = () => {
     if (this.state.page) {
@@ -218,7 +225,6 @@ export class PageView extends React.PureComponent<PageViewProps, PageViewState> 
         this.canvas.style.height = style.height;
         this.canvas.style.width = style.width;
       }
-
       return (
         <>
           <div

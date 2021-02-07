@@ -1,11 +1,11 @@
 import React from 'react';
-import { NotesManager } from '../NotesManager';
+import { DocumentManager } from '../DocumentManager';
 import { Reference, ReferenceId } from '../../NoteStorage';
 import AddCommentIcon from '@material-ui/icons/AddComment';
 import ClearIcon from '@material-ui/icons/Clear';
 
 interface ReferenceModelProps {
-  lm: NotesManager;
+  lm: DocumentManager;
   id: ReferenceId;
 }
 

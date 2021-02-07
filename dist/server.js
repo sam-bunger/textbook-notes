@@ -74,6 +74,8 @@ app.prepare().then(() => {
             data: {
                 categories: [],
                 notes: {},
+                references: {},
+                definitions: {},
                 pages: {}
             }
         });

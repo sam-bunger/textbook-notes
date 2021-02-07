@@ -6,11 +6,10 @@ import { getNotes } from '../components/networkAPI/network';
 import EditorNav from '../components/editor/editorNav/editorNav';
 import { NoteStorage } from '../components/editor/NoteStorage';
 import { EditorContext, EditorState } from '../components/editor/EditorContext';
-import { NotesManager } from '../components/editor/layers/NotesManager';
 
 export default class Editor extends React.Component<{}, EditorState> {
   state: EditorState;
-  nm?: NotesManager;
+  noteData?: NoteStorage['data'];
 
   constructor() {
     super({});
@@ -34,10 +33,10 @@ export default class Editor extends React.Component<{}, EditorState> {
         console.error(err);
         return;
       }
+      this.noteData = data.data;
       this.setState({
         ...data.info
       });
-      this.nm = new NotesManager(data.data);
       this.render();
     });
   };
@@ -50,7 +49,7 @@ export default class Editor extends React.Component<{}, EditorState> {
           <Nav />
           <EditorNav />
           <div>
-            <PDFViewer nm={this.nm}/>
+            <PDFViewer noteData={this.noteData}/>
           </div>
         </EditorContext.Provider>
       </>

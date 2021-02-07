@@ -1,10 +1,10 @@
 import React from 'react';
-import { NotesManager } from '../NotesManager';
+import { DocumentManager } from '../DocumentManager';
 import { Note, NoteId } from '../../NoteStorage';
 import { Point } from '../../../types';
 
 interface NoteModelProps {
-  lm: NotesManager;
+  lm: DocumentManager;
   id: NoteId;
 }
 

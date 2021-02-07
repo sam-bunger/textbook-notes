@@ -14,6 +14,10 @@ body {
   margin: 0;
 }
 
+mark {
+  /* color: transparent; */
+}
+
 input::-webkit-outer-spin-button,
 input::-webkit-inner-spin-button {
   -webkit-appearance: none;

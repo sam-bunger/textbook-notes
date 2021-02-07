@@ -1,27 +1,35 @@
 import React from 'react';
 import _ from 'lodash';
 import { Point, Bound } from '../../types';
-import { DEFAULT_HEIGHT, DEFAULT_WIDTH, INITIAL_PAGE_SCALE, INITIAL_RENDER_WIDTH, MAX_LOADED, PAGE_SPACE } from '../utils';
-import { NotesManager } from '../layers/NotesManager';
+import {
+  DEFAULT_HEIGHT,
+  DEFAULT_WIDTH,
+  INITIAL_PAGE_SCALE,
+  INITIAL_RENDER_WIDTH,
+  MAX_LOADED,
+  PAGE_SPACE
+} from '../utils';
+import { DocumentManager } from '../layers/DocumentManager';
 import { EditorContext, EditorState } from '../EditorContext';
 import { CSS_UNITS } from '../utils';
 import { StoredViewport } from './types';
 import { PageView, RenderCanvas } from './page/PageView';
 import HighlightMenu from './HighlightMenu';
+import { NoteStorage } from '../NoteStorage';
 
-declare global{
+declare global {
   interface Window {
-    pdfjsLib: any
+    pdfjsLib: any;
   }
 }
 
 export type RenderQueueItem = {
   pageNumber: number;
-  renderCanvas: RenderCanvas
-}
+  renderCanvas: RenderCanvas;
+};
 
 interface PDFViewerProps {
-  nm?: NotesManager
+  noteData?: NoteStorage['data'];
 }
 
 interface PDFViewerState {
@@ -56,6 +64,7 @@ class PDFViewer extends React.PureComponent<PDFViewerProps, PDFViewerState> {
   prevPage: number;
   lastDocument: string;
   context: EditorState;
+  dm?: DocumentManager;
   throttleSetPageWidth: () => void;
   throttleRenderLock: () => void;
   throttleUpdate: () => void;
@@ -86,7 +95,7 @@ class PDFViewer extends React.PureComponent<PDFViewerProps, PDFViewerState> {
       defaultViewport: {
         width: DEFAULT_WIDTH,
         height: DEFAULT_HEIGHT
-      },
+      }
     };
 
     this.mousePos = {
@@ -168,7 +177,11 @@ class PDFViewer extends React.PureComponent<PDFViewerProps, PDFViewerState> {
   computeCurrentPage = () => {
     if (this.state.pos.y === this.previousHeight) return false;
     const searchDown = this.state.pos.y < this.previousHeight;
-    for (let i = this.context.currentPage; i <= this.state.pages.length && i >= 0; searchDown ? i++ : i--) {
+    for (
+      let i = this.context.currentPage;
+      i <= this.state.pages.length && i >= 0;
+      searchDown ? i++ : i--
+    ) {
       if (!this.state.pages[i]) break;
       if (this.isCurrentPage(this.state.pages[i])) {
         if (this.context.currentPage === i) break;
@@ -178,28 +191,30 @@ class PDFViewer extends React.PureComponent<PDFViewerProps, PDFViewerState> {
     }
     this.previousHeight = this.state.pos.y;
     return false;
-  }
+  };
 
   isCurrentPage = (pageRef: React.RefObject<any>) => {
     if (!pageRef.current) return false;
     const rect = pageRef.current.getBoundingClientRect();
-    const screenCenter = (window.innerHeight || document.documentElement.clientHeight)/2;
+    const screenCenter =
+      (window.innerHeight || document.documentElement.clientHeight) / 2;
     const margin = PAGE_SPACE * this.state.scale;
-    return (
-      rect.bottom + margin >= screenCenter &&
-      rect.top <= screenCenter
-    );
-  }
+    return rect.bottom + margin >= screenCenter && rect.top <= screenCenter;
+  };
 
   correctDocumentBound = () => {
     window.requestAnimationFrame(() => {
       if (!this.state.pdf) return;
 
       const firstPage = this.state.pages[0].current.getBoundingClientRect();
-      const currentPage = this.state.pages[this.context.currentPage].current.getBoundingClientRect();
-      const lastPage = this.state.pages[this.context.totalPages-1].current.getBoundingClientRect();
+      const currentPage = this.state.pages[
+        this.context.currentPage
+      ].current.getBoundingClientRect();
+      const lastPage = this.state.pages[
+        this.context.totalPages - 1
+      ].current.getBoundingClientRect();
       const canvasRect = this.pageRef.current.getBoundingClientRect();
-      const screenCenterY = canvasRect.bottom/2;
+      const screenCenterY = canvasRect.bottom / 2;
       const screenRight = canvasRect.right;
       const screenLeft = canvasRect.left;
 
@@ -212,35 +227,38 @@ class PDFViewer extends React.PureComponent<PDFViewerProps, PDFViewerState> {
       } else if (lastPage.bottom < screenCenterY) {
         //Bottom page too high
         pos = { x: 0, y: 0 };
-        pos.y = (lastPage.bottom - screenCenterY);
+        pos.y = lastPage.bottom - screenCenterY;
         if (pos.y <= -1) pos.y *= 0.25;
-      } else if (currentPage.left + currentPage.width/2 > screenRight) {
+      } else if (currentPage.left + currentPage.width / 2 > screenRight) {
         //Current page too far right
         pos = { x: 0, y: 0 };
-        pos.x = (currentPage.left + currentPage.width/2) - screenRight;
+        pos.x = currentPage.left + currentPage.width / 2 - screenRight;
         if (pos.x >= 1) pos.x *= 0.25;
-      } else if (currentPage.left + currentPage.width/2 < screenLeft) {
+      } else if (currentPage.left + currentPage.width / 2 < screenLeft) {
         //Current page too far left
         pos = { x: 0, y: 0 };
-        pos.x = (currentPage.left + currentPage.width/2) - screenLeft ;
+        pos.x = currentPage.left + currentPage.width / 2 - screenLeft;
         if (pos.x <= -1) pos.x *= 0.25;
       }
 
       if (pos !== undefined) {
-        this.setState({
-          pos: {
-            x: this.state.pos.x - pos.x,
-            y: this.state.pos.y - pos.y
+        this.setState(
+          {
+            pos: {
+              x: this.state.pos.x - pos.x,
+              y: this.state.pos.y - pos.y
+            },
+            rel: {
+              x: this.state.rel.x + pos.x,
+              y: this.state.rel.y + pos.y
+            }
           },
-          rel: {
-            x: this.state.rel.x + pos.x,
-            y: this.state.rel.y + pos.y
-          }
-        }, this.correctDocumentBound);
+          this.correctDocumentBound
+        );
         return;
       }
     });
-  }
+  };
 
   update = () => {
     this.setState((state: PDFViewerState) => {
@@ -267,41 +285,46 @@ class PDFViewer extends React.PureComponent<PDFViewerProps, PDFViewerState> {
         viewablePages
       };
     });
-  }
+  };
 
   addToRenderQueue = (pageNumber: number, renderCanvas: RenderCanvas) => {
-    if(this.renderQueue.some((item: RenderQueueItem) => pageNumber === item.pageNumber)) return;
+    if (this.renderQueue.some((item: RenderQueueItem) => pageNumber === item.pageNumber))
+      return;
     this.renderQueue.push({
       pageNumber,
       renderCanvas
     });
-  }
+  };
 
   adjustPageHeight = (pageNumber: number) => {
     if (
       pageNumber >= this.context.currentPage ||
       !this.state.pages[pageNumber] ||
       !this.state.pages[pageNumber].current
-    ) return;
- 
+    )
+      return;
+
     const height = parseInt(this.state.pages[pageNumber].current.style.height);
 
-    const heightChange = (this.state.defaultViewport.height * this.state.scale) - height;
+    const heightChange = this.state.defaultViewport.height * this.state.scale - height;
 
     if (heightChange === 0) return;
 
     const wasDragging = this.state.dragging;
-    this.setState({
-      dragging: false,
-      pos: {
-        x: this.state.pos.x,
-        y: this.state.pos.y + heightChange
+    this.setState(
+      {
+        dragging: false,
+        pos: {
+          x: this.state.pos.x,
+          y: this.state.pos.y + heightChange
+        }
+      },
+      () => {
+        this.previousHeight = this.state.pos.y + heightChange;
+        if (wasDragging) this.resetMouseHold();
       }
-    }, () => {
-      this.previousHeight = this.state.pos.y + heightChange;
-      if (wasDragging) this.resetMouseHold();
-    });
-  }
+    );
+  };
 
   renderLock = (done?: () => void) => {
     if (this.isRendering || this.renderQueue.length === 0) return;
@@ -309,10 +332,10 @@ class PDFViewer extends React.PureComponent<PDFViewerProps, PDFViewerState> {
     this.renderPages(() => {
       if (done) done();
     });
-  }
+  };
 
   cancelRender = () => {
-    if(this.renderTask) {
+    if (this.renderTask) {
       this.renderTask.cancel();
       this.renderTask = undefined;
     }
@@ -323,10 +346,9 @@ class PDFViewer extends React.PureComponent<PDFViewerProps, PDFViewerState> {
     }
 
     this.renderQueue = [];
-  }
+  };
 
   renderPages = (done: () => void) => {
-
     const complete = () => {
       this.isRendering = false;
       done();
@@ -348,11 +370,13 @@ class PDFViewer extends React.PureComponent<PDFViewerProps, PDFViewerState> {
     });
     this.renderTask = tasks.renderTask;
     this.renderTextTask = tasks.renderTextTask;
-  }
+  };
 
   clearSelection = () => {
-    if (window.getSelection) {window.getSelection().removeAllRanges();}
-  }
+    if (window.getSelection) {
+      window.getSelection().removeAllRanges();
+    }
+  };
 
   updateLoadedQueue = (index: number, state: PDFViewerState) => {
     //Add new page to queue
@@ -371,7 +395,7 @@ class PDFViewer extends React.PureComponent<PDFViewerProps, PDFViewerState> {
       }
     }
     this.loadedQueue.push(index);
-  }
+  };
 
   isViewable = (pageRef: React.RefObject<any>) => {
     if (!pageRef) return false;
@@ -382,51 +406,53 @@ class PDFViewer extends React.PureComponent<PDFViewerProps, PDFViewerState> {
       rect.top >= (window.innerHeight || document.documentElement.clientHeight) ||
       rect.left >= (window.innerWidth || document.documentElement.clientWidth)
     );
-  }
+  };
 
   documentSetup = () => {
     if (!this.context.document) return;
     const loadingTask = this.pdfjsLib.getDocument(this.context.document);
-    loadingTask.promise.then((pdf) => {
-
-      pdf.getMetadata().then((data) => {
-        console.log('metadata: ', data);
-      });
-
-      pdf.getOutline().then((data) => {
-        console.log('outline: ', data);
-      });
-
-      this.context.setContext({
-        totalPages: pdf.numPages
-      });
-
-      pdf.getPage(1).then((page) => {
-        const viewport = page.getViewport({ scale: CSS_UNITS });
-        this.setState({
-          defaultViewport: {
-            height: viewport.height,
-            width: viewport.width
-          }
+    loadingTask.promise
+      .then((pdf) => {
+        pdf.getMetadata().then((data) => {
+          console.log('metadata: ', data);
         });
-      });
 
-      this.setState((state: PDFViewerState) => {
-        for (let i = 0; i < pdf.numPages; i++) {
-          state.pages.push(React.createRef());
-        }
-        return {
-          ...state,
-          pdf,
-          pages: state.pages
-        };
+        pdf.getOutline().then((data) => {
+          console.log('outline: ', data);
+        });
+
+        this.dm = new DocumentManager(this.props.noteData, pdf.numPages);
+
+        this.context.setContext({
+          totalPages: pdf.numPages
+        });
+
+        pdf.getPage(1).then((page) => {
+          const viewport = page.getViewport({ scale: CSS_UNITS });
+          this.setState({
+            defaultViewport: {
+              height: viewport.height,
+              width: viewport.width
+            }
+          });
+        });
+
+        this.setState((state: PDFViewerState) => {
+          for (let i = 0; i < pdf.numPages; i++) {
+            state.pages.push(React.createRef());
+          }
+          return {
+            ...state,
+            pdf,
+            pages: state.pages
+          };
+        });
+      })
+      .catch((error) => {
+        console.log(error);
+        console.log('nice');
       });
-    }).catch((error) => {
-      console.log(error);
-      console.log('nice');
-    });
   };
-
 
   /* Handle Scale */
 
@@ -445,29 +471,31 @@ class PDFViewer extends React.PureComponent<PDFViewerProps, PDFViewerState> {
         x: width / 2 - (INITIAL_RENDER_WIDTH * newScale) / 2,
         y: this.state.pos.y
       }
-    });   
+    });
   };
 
   /* Page Handlers */
   updatePageNumber = (i: number) => {
     this.prevPage = i;
     this.context.setContext({ currentPage: i });
-  }
+  };
 
   calculateNewYPos = () => {
     this.prevPage = this.context.currentPage;
     let yPos = 0;
     for (let i = 0; i < this.context.currentPage; i++) {
       if (!this.state.pages[i] || !this.state.pages[i].current) return;
-      yPos += parseInt(this.state.pages[i].current.style.height) + PAGE_SPACE * this.state.scale;
+      yPos +=
+        parseInt(this.state.pages[i].current.style.height) +
+        PAGE_SPACE * this.state.scale;
     }
     this.setState({
       pos: {
         x: this.state.pos.x,
-        y: -1*yPos
+        y: -1 * yPos
       }
     });
-  }
+  };
 
   enterMouse(mouseIn: boolean) {
     this.setState({
@@ -477,22 +505,25 @@ class PDFViewer extends React.PureComponent<PDFViewerProps, PDFViewerState> {
 
   keyDownHandler = (e: any) => {
     if (this.state.spacePressed) return;
-    if (e.keyCode === 32) { 
+    if (e.keyCode === 32) {
       //Spacebar
       performance.mark('spacebar-press-start');
       this.context.setContext({
         canvasIsLocked: true
       });
-      this.setState({
-        spacePressed: true
-      }, () => {
-        performance.mark('spacebar-press-stop');
-        performance.measure(
-          'spacebar-press',
-          'spacebar-press-start',
-          'spacebar-press-stop'
-        );
-      });
+      this.setState(
+        {
+          spacePressed: true
+        },
+        () => {
+          performance.mark('spacebar-press-stop');
+          performance.measure(
+            'spacebar-press',
+            'spacebar-press-start',
+            'spacebar-press-stop'
+          );
+        }
+      );
     }
   };
 
@@ -503,17 +534,20 @@ class PDFViewer extends React.PureComponent<PDFViewerProps, PDFViewerState> {
       this.context.setContext({
         canvasIsLocked: false
       });
-      this.setState({
-        spacePressed: false,
-        dragging: false,
-      }, () => {
-        performance.mark('spacebar-release-stop');
-        performance.measure(
-          'spacebar-release',
-          'spacebar-release-start',
-          'spacebar-release-stop'
-        );
-      });
+      this.setState(
+        {
+          spacePressed: false,
+          dragging: false
+        },
+        () => {
+          performance.mark('spacebar-release-stop');
+          performance.measure(
+            'spacebar-release',
+            'spacebar-release-start',
+            'spacebar-release-stop'
+          );
+        }
+      );
     }
   };
 
@@ -528,16 +562,16 @@ class PDFViewer extends React.PureComponent<PDFViewerProps, PDFViewerState> {
         }
       });
     } else {
-      const newScale: number = this.state.scale + (e.wheelDelta / 1000);
+      const newScale: number = this.state.scale + e.wheelDelta / 1000;
       if (newScale < this.scaleBounds.low || newScale > this.scaleBounds.high) return;
 
       //Percent change
       const percentChange: number = (newScale - this.state.scale) / this.state.scale;
-      
+
       //Get difference in mouse and document positions
 
       const diffPos: Point = {
-        x: (this.state.pos.x - window.innerWidth/2) * percentChange,
+        x: (this.state.pos.x - window.innerWidth / 2) * percentChange,
         y: (this.state.pos.y - 400) * percentChange
       };
 
@@ -608,22 +642,24 @@ class PDFViewer extends React.PureComponent<PDFViewerProps, PDFViewerState> {
         y: this.mousePos.y - pos.y
       }
     });
-  }
+  };
 
   render() {
     const items = [];
     for (let i = 0; i < this.context.totalPages; i++) {
       items.push(
-        <PageView 
+        <PageView
           defaultViewport={this.state.defaultViewport}
-          scale={this.state.scale} 
+          scale={this.state.scale}
           divRef={this.state.pages[i]}
           pageNumber={i}
           pdf={this.state.pdf}
           isViewable={this.state.viewablePages.includes(i)}
+          pm={this.dm.getPage(i)}
           adjustPageHeight={this.adjustPageHeight}
           addToRenderQueue={this.addToRenderQueue}
-        ></PageView>);
+        ></PageView>
+      );
     }
 
     const cursor: string = this.state.spacePressed
@@ -646,11 +682,9 @@ class PDFViewer extends React.PureComponent<PDFViewerProps, PDFViewerState> {
           style={{ cursor }}
           ref={this.pageRef}
         >
-          {this.props.nm ? <HighlightMenu createReference={this.props.nm.createReference}/> : null}
+          {this.dm ? <HighlightMenu createReference={this.dm.createReference} /> : null}
           <div className="document-layer" style={positionWithoutScale}>
-            <div className="pdfViewer">
-              {items}
-            </div>
+            <div className="pdfViewer">{items}</div>
           </div>
         </div>
       </>

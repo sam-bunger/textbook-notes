@@ -1,10 +1,10 @@
 import React from 'react';
-import { NotesManager } from '../NotesManager';
+import { DocumentManager } from '../DocumentManager';
 import { NoteId } from '../../NoteStorage';
 import Note from './Note';
 
 interface NoteLayerProps {
-  lm: NotesManager;
+  lm: DocumentManager;
 }
 
 type NoteLayerState = {
