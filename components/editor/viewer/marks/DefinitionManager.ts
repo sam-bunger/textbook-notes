@@ -1,9 +1,23 @@
 import { Definition } from '../../NoteStorage';
-import { MarkManager } from './MarkManager';
+import { TextManager } from './TextManager';
 
-export class DefinitionManager extends MarkManager {
+export class DefinitionManager extends TextManager {
+  private mouseIsIn: boolean;
+
   public constructor(private definition: Definition) {
-    super(definition.id);
+    super(definition.id, definition.location);
   }
-  public paintOnPage = (num: number, divs: HTMLElement[]) => {};
+  public mouseEnter = () => {
+    this.mouseIsIn = true;
+    for (const mark of this.marks) {
+      mark.style.backgroundColor = 'blue';
+    }
+  };
+
+  public mouseLeave = () => {
+    this.mouseIsIn = false;
+    for (const mark of this.marks) {
+      mark.style.backgroundColor = 'yellow';
+    }
+  };
 }

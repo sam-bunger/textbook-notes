@@ -3,6 +3,7 @@ import { listener, trigger } from '../../globalEvents/events';
 import { Point } from '../../types';
 import BorderColorIcon from '@material-ui/icons/BorderColor';
 import { TextLocation } from '../NoteStorage';
+import { innerHighlightName } from './marks/TextManager';
 
 type CreateReference = (location: TextLocation, text: string) => void;
 
@@ -70,11 +71,44 @@ export default class HighlightMenu extends React.Component<
     if (this.state.locked) return;
     const select = document.getSelection();
     this.currentSelection = select;
+    console.log(select);
     if (select.type == 'Range') {
+      console.log('type range!!!!');
       const range = select.getRangeAt(0);
       const rect = range.getBoundingClientRect();
-      const startSplit = range.startContainer.parentElement.id.split('-');
-      const endSplit = range.endContainer.parentElement.id.split('-');
+
+      console.log(range);
+
+      let startContainer = range.startContainer.parentElement;
+      let startOffset = 0;
+      let endContainer = range.endContainer.parentElement;
+      let endOffset = 0;
+
+      //Check if containers are already highlighted, if so go to parent
+      if (startContainer.id === innerHighlightName) {
+        const temp = startContainer;
+        startContainer = startContainer.parentElement;
+        for (const child of startContainer.childNodes as any) {
+          if (child === temp) break;
+          startOffset += child.innerText.length;
+        }
+      }
+
+      if (endContainer.id === innerHighlightName) {
+        const temp = endContainer;
+        endContainer = endContainer.parentElement;
+        for (const child of endContainer.childNodes as any) {
+          if (child === temp) break;
+          endOffset += child.innerText.length;
+        }
+      }
+
+      console.log('startOffset: ', startOffset);
+      console.log('endOffset: ', endOffset);
+
+      const startSplit = startContainer.id.split('-');
+      const endSplit = endContainer.id.split('-');
+
       this.setState({
         pos: { x: rect.x + rect.width + 10, y: rect.y - 110 },
         visible: true
@@ -83,12 +117,12 @@ export default class HighlightMenu extends React.Component<
         start: {
           page: parseInt(startSplit[0]),
           spanOffset: parseInt(startSplit[1]),
-          letterOffset: range.startOffset
+          letterOffset: range.startOffset + startOffset
         },
         end: {
           page: parseInt(endSplit[0]),
           spanOffset: parseInt(endSplit[1]),
-          letterOffset: range.endOffset
+          letterOffset: range.endOffset + endOffset
         }
       };
       this.currentText = select.toString();

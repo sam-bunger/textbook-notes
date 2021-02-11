@@ -4,6 +4,14 @@ import { DefinitionManager } from '../marks/DefinitionManager';
 import { MarkManager } from '../marks/MarkManager';
 import { NoteManager } from '../marks/NoteManger';
 import { ReferenceManager } from '../marks/ReferenceManager';
+import { TextManager } from '../marks/TextManager';
+
+type getMarksOverload = {
+  (type: 'DEFINITION'): DefinitionManager[];
+  (type: 'REFERENCE'): ReferenceManager[];
+  (type: 'NOTE'): NoteManager[];
+  (type: MarkType): MarkManager[];
+};
 
 export class PageManager {
   private textDivs?: HTMLElement[];
@@ -19,6 +27,10 @@ export class PageManager {
     this.marks.push(mark);
   };
 
+  public removeMark = (id: string) => {
+    this.marks = this.marks.filter((mark) => mark.id !== id);
+  };
+
   public paintTextOverlays = () => {
     if (!this.textDivs) return;
     console.log('marks: ', this.marks);
@@ -32,7 +44,7 @@ export class PageManager {
     }
   };
 
-  public getMarks = (type: MarkType): MarkManager[] => {
+  public getMarks: getMarksOverload = (type: MarkType): any => {
     const managers = [];
     for (const mark of this.marks) {
       if (mark.type !== type) continue;

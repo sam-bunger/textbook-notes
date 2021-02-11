@@ -61,12 +61,31 @@ export class DocumentManager {
 
   public createReference = (location: TextLocation, text: string) => {
     const id = uuidv4();
-    this.references[id] = new ReferenceManager({
+    const ref = new ReferenceManager({
       id,
       text,
       location
     });
+
+    //Check any overlapping references and merge
+    console.log('new location: ', location);
+
     for (let page = location.start.page; page <= location.end.page; page++) {
+      console.log('trying page');
+      for (const mark of this.pages[page].getMarks('REFERENCE')) {
+        if (ref.isOverlapping(mark)) {
+          console.log('COMBINE!!!!');
+          ref.combine(mark); // I need to figure out how to combine the text here as well
+          mark.removePageRefs(this.pages);
+          this.references[mark.id] = undefined;
+          delete this.references[mark.id];
+        }
+      }
+    }
+
+    this.references[id] = ref;
+    console.log('BLOGGER SALAD: ', this.references);
+    for (let page = ref.location.start.page; page <= ref.location.end.page; page++) {
       this.pages[page].addMark({
         type: 'REFERENCE',
         id
