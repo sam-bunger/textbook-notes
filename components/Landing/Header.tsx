@@ -1,16 +1,27 @@
 import React from 'react';
-import styled from 'styled-components';
+import { LandingState } from '../../pages/landing';
 
-const Nice = styled.h1`
-  font-family: 'Yellowtail', cursive;
-`;
-
-const Header = () => {
+export const Header = (props: { data?: LandingState['Header'] }) => {
   return (
-    <>
-      <Nice>Hello World</Nice>
-    </>
+    <header id="header">
+      <div className="intro">
+        <div className="overlay">
+          <div className="container">
+            <div className="row">
+              <div className="col-md-8 col-md-offset-2 intro-text">
+                <h1>
+                  {props.data ? props.data.title : 'Loading'}
+                  <span></span>
+                </h1>
+                <p>{props.data ? props.data.paragraph : 'Loading'}</p>
+                <a href="#features" className="btn btn-custom btn-lg page-scroll">
+                  Learn More
+                </a>{' '}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </header>
   );
 };
-
-export default Header;
