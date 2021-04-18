@@ -8,10 +8,19 @@
  * #FFFFFF
  */
 
+/** Newer colors?
+  * #FFFFFF
+  * #99D6FF
+  * #FF99DD
+  * #BFBFC5
+  */
+
 /******* Canvas CSS ******/
+html,
 body {
-  overflow: hidden;
   margin: 0;
+  max-width: 100%;
+  overflow-x: hidden;
 }
 
 input::-webkit-outer-spin-button,

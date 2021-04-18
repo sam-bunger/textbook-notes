@@ -1,150 +1,70 @@
 import React, { useState } from 'react';
-import { LandingState } from '../../pages/landing';
+import styled from 'styled-components';
 
-const initialState = {
-  name: '',
-  email: '',
-  message: ''
+type ContactProps = {
+  inputWidth: string;
 };
-export const Contact = (props: { data: LandingState['Contact'] }) => {
-  const [{ name, email, message }, setState] = useState(initialState);
+
+type ContactState = {
+  email: string;
+};
+
+export const Contact = (props: ContactProps) => {
+  const [{ email }, setState] = useState<ContactState>({ email: '' });
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setState((prevState) => ({ ...prevState, [name]: value }));
+    setState((prevState) => ({
+      email: value
+    }));
   };
-  const clearState = () => setState({ ...initialState });
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    console.log(name, email, message);
+    console.log(e.target);
   };
 
   return (
-    <div>
-      <div id="contact">
-        <div className="container">
-          <div className="col-md-8">
-            <div className="row">
-              <div className="section-title">
-                <h2>Get In Touch</h2>
-                <p>
-                  Please fill out the form below to send us an email and we will get back
-                  to you as soon as possible.
-                </p>
-              </div>
-              <form name="sentMessage" validate onSubmit={handleSubmit}>
-                <div className="row">
-                  <div className="col-md-6">
-                    <div className="form-group">
-                      <input
-                        type="text"
-                        id="name"
-                        name="name"
-                        className="form-control"
-                        placeholder="Name"
-                        required
-                        onChange={handleChange}
-                      />
-                      <p className="help-block text-danger"></p>
-                    </div>
-                  </div>
-                  <div className="col-md-6">
-                    <div className="form-group">
-                      <input
-                        type="email"
-                        id="email"
-                        name="email"
-                        className="form-control"
-                        placeholder="Email"
-                        required
-                        onChange={handleChange}
-                      />
-                      <p className="help-block text-danger"></p>
-                    </div>
-                  </div>
-                </div>
-                <div className="form-group">
-                  <textarea
-                    name="message"
-                    id="message"
-                    className="form-control"
-                    rows="4"
-                    placeholder="Message"
-                    required
-                    onChange={handleChange}
-                  ></textarea>
-                  <p className="help-block text-danger"></p>
-                </div>
-                <div id="success"></div>
-                <button type="submit" className="btn btn-custom btn-lg">
-                  Send Message
-                </button>
-              </form>
-            </div>
-          </div>
-          <div className="col-md-3 col-md-offset-1 contact-info">
-            <div className="contact-item">
-              <h3>Contact Info</h3>
-              <p>
-                <span>
-                  <i className="fa fa-map-marker"></i> Address
-                </span>
-                {props.data ? props.data.address : 'loading'}
-              </p>
-            </div>
-            <div className="contact-item">
-              <p>
-                <span>
-                  <i className="fa fa-phone"></i> Phone
-                </span>{' '}
-                {props.data ? props.data.phone : 'loading'}
-              </p>
-            </div>
-            <div className="contact-item">
-              <p>
-                <span>
-                  <i className="fa fa-envelope-o"></i> Email
-                </span>{' '}
-                {props.data ? props.data.email : 'loading'}
-              </p>
-            </div>
-          </div>
-          <div className="col-md-12">
-            <div className="row">
-              <div className="social">
-                <ul>
-                  <li>
-                    <a href={props.data ? props.data.facebook : '/'}>
-                      <i className="fa fa-facebook"></i>
-                    </a>
-                  </li>
-                  <li>
-                    <a href={props.data ? props.data.twitter : '/'}>
-                      <i className="fa fa-twitter"></i>
-                    </a>
-                  </li>
-                  <li>
-                    <a href={props.data ? props.data.youtube : '/'}>
-                      <i className="fa fa-youtube"></i>
-                    </a>
-                  </li>
-                </ul>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-      <div id="footer">
-        <div className="container text-center">
-          <p>
-            &copy; 2020 Issaaf Kattan React Land Page Template. Design by{' '}
-            <a href="http://www.templatewire.com" rel="nofollow">
-              TemplateWire
-            </a>
-          </p>
-        </div>
-      </div>
-    </div>
+    <ContactForm onSubmit={handleSubmit}>
+      <EmailInput width={props.inputWidth}></EmailInput>
+      <Submit></Submit>
+    </ContactForm>
   );
 };
+
+const ContactForm = styled.form`
+  padding: 11px;
+  overflow: hidden;
+`;
+
+const Submit = styled.input.attrs({ type: 'submit' })`
+  height: 36px;
+  width: 80px;
+  margin-left: 20px;
+  padding: 0px;
+  border: none;
+  border-radius: 6px;
+  transition: 0.3s;
+  font-family: 'Montserrat', sans-serif;
+  :hover {
+    transition: 0.3s;
+    -webkit-box-shadow: 0px 0px 11px 1px rgba(0, 0, 0, 0.13);
+    box-shadow: 0px 0px 11px 1px rgba(0, 0, 0, 0.13);
+    background-color: #f5f5f5;
+  }
+`;
+
+const EmailInput = styled.input.attrs({
+  type: 'email',
+  id: 'inputEmail',
+  className: 'form-control',
+  placeholder: 'Email Address'
+})`
+  height: 35px;
+  width: ${(props) => props.width + 'px'};
+  border: none;
+  font-family: 'Montserrat', sans-serif;
+  border-radius: 6px;
+  background-color: #d8d8d8;
+  padding-left: 10px;
+`;
